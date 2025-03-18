@@ -1,7 +1,3 @@
-Certainly! Below is a sample README for the `TVIEW` repository:
-
----
-
 # TVIEW
 
 Application to maintain data to support time tunnel.
