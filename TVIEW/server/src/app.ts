@@ -4,9 +4,9 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import path from 'path';
 import dotenv from 'dotenv';
-import { connectDB } from './config/db';
-import { logger } from './utils/logger';
-import { errorHandler } from './middleware/errorMiddleware';
+import { connectDB } from './config/db.ts';
+import { logger } from './utils/logger.ts';
+import { errorHandler } from './middleware/errorMiddleware.ts';
 
 // Routes
 import gedcomRoutes from './routes/gedcomRoutes';
@@ -42,6 +42,8 @@ app.use('/api/export', exportRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
+  // @ts-ignore
+  req; // Intentionally unused for now
   res.json({ status: 'ok', message: 'Server is running' });
 });
 

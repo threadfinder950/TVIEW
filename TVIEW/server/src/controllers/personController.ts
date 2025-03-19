@@ -1,16 +1,19 @@
 import { Request, Response } from 'express';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ErrorResponse } from '../middleware/errorMiddleware';
-import Person from '../models/Person';
+import Person, { IPerson } from '../models/Person';
 import Event from '../models/Event';
 import Relationship from '../models/Relationship';
+import { Document, Types } from 'mongoose';
+
+const { ObjectId } = Types;
 
 /**
  * @desc    Get all persons
  * @route   GET /api/persons
  * @access  Public
  */
-export const getAllPersons = asyncHandler(async (req: Request, res: Response) => {
+export const getAllPersons = asyncHandler(async (_req: Request, res: Response) => {
   const persons = await Person.find().sort({ 'names.surname': 1, 'names.given': 1 });
   
   res.json(persons);
@@ -138,8 +141,16 @@ export const getPersonFamily = asyncHandler(async (req: Request, res: Response) 
     _id: { $in: Array.from(familyIds) } 
   });
   
-  // Organize by relationship type
-  const family = {
+  // Define the type for family members
+  type FamilyMember = Document<unknown, {}, IPerson> & IPerson & { _id: Types.ObjectId };
+  
+  // Organize by relationship type with proper typing
+  const family: {
+    parents: FamilyMember[];
+    spouses: FamilyMember[];
+    children: FamilyMember[];
+    siblings: FamilyMember[];
+  } = {
     parents: [],
     spouses: [],
     children: [],
@@ -153,7 +164,7 @@ export const getPersonFamily = asyncHandler(async (req: Request, res: Response) 
     
     const relatedPersons = familyMembers.filter(p => 
       otherPersonIds.includes(p._id.toString())
-    );
+    ) as FamilyMember[];
     
     if (rel.type === 'Parent-Child') {
       // Determine if the person is the parent or child

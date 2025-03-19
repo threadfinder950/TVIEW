@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+*/node_modules/
+/client/node_modules/
+/server/node_modules/
+
+# Build outputs
+/client/dist/
+/client/build/
+/server/dist/
+/server/build/
+
+# Environment files (don't commit these as they often contain secrets)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+/client/.env*
+/server/.env*
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor directories and files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache

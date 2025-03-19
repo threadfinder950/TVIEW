@@ -16,9 +16,9 @@ interface MulterFile {
   size: number;
 }
 
-interface MulterRequest extends Request {
+type MulterRequest = Request & {
   file?: MulterFile;
-}
+};
 
 /**
  * @desc    Upload and process GEDCOM file
