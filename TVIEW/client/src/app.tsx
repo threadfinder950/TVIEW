@@ -1,3 +1,4 @@
+// src/App.tsx
 import { useState, useEffect } from 'react';
 import { 
   BrowserRouter as Router, 
@@ -22,7 +23,8 @@ import {
   Box,
   createTheme,
   ThemeProvider,
-  CircularProgress
+  CircularProgress,
+  Alert
 } from '@mui/material';
 import { 
   Dashboard as DashboardIcon, 
@@ -38,10 +40,7 @@ import GedcomImport from './components/gedcom/GedcomImport';
 import PersonTimeline from './components/timeline/PersonTimeline';
 import EventEditor from './components/forms/EventEditor';
 import ExportData from './components/export/ExportData';
-
-// For demo purposes we'll use a single person ID
-// In a real app, this would come from user selection or URL parameters
-const DEMO_PERSON_ID = "demo-person-id";
+import { API } from './config/api';
 
 const theme = createTheme({
   palette: {
@@ -65,7 +64,7 @@ const PersonDetails = () => {
     const fetchPerson = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`http://localhost:5000/api/persons/${id}`);
+        const response = await axios.get(API.persons.getById(id!));
         setPerson(response.data);
       } catch (err) {
         setError('Failed to fetch person details');
@@ -80,8 +79,8 @@ const PersonDetails = () => {
   }, [id]);
   
   if (loading) return <CircularProgress />;
-  if (error) return <div>Error: {error}</div>;
-  if (!person) return <div>Person not found</div>;
+  if (error) return <Alert severity="error">{error}</Alert>;
+  if (!person) return <Typography>Person not found</Typography>;
   
   // Get the current/primary name
   const currentName = person.names && person.names.length > 0 
@@ -133,7 +132,7 @@ const PeopleList = () => {
   useEffect(() => {
     const fetchPeople = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/persons');
+        const response = await axios.get(API.persons.getAll);
         setPeople(response.data);
       } catch (error) {
         console.error('Error fetching people:', error);

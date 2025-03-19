@@ -1,3 +1,4 @@
+// src/components/timeline/PersonTimeline.tsx
 import React, { useState, useEffect } from 'react';
 import {
   Paper,
@@ -38,6 +39,7 @@ import {
 import { format } from 'date-fns';
 import axios from 'axios';
 import EventEditor from '../forms/EventEditor';
+import { API } from '../../config/api';
 
 interface Event {
   _id: string;
@@ -72,7 +74,7 @@ const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName })
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`http://localhost:5000/api/persons/${personId}/events`);
+      const response = await axios.get(API.persons.events(personId));
       
       // Convert date strings to Date objects and sort by start date
       const eventsWithDates = response.data.map((event: any) => ({
@@ -113,7 +115,7 @@ const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName })
   const handleDeleteEvent = async (eventId: string) => {
     if (window.confirm('Are you sure you want to delete this event?')) {
       try {
-        await axios.delete(`http://localhost:5000/api/events/${eventId}`);
+        await axios.delete(API.events.delete(eventId));
         // Remove the deleted event from the state
         setEvents(events.filter(event => event._id !== eventId));
       } catch (err) {

@@ -1,3 +1,4 @@
+// src/components/export/ExportData.tsx
 import React, { useState, useEffect } from 'react';
 import {
   Button,
@@ -28,6 +29,7 @@ import {
   People as PeopleIcon
 } from '@mui/icons-material';
 import axios from 'axios';
+import { API } from '../../config/api';
 
 interface Person {
   _id: string;
@@ -50,7 +52,7 @@ const ExportData: React.FC = () => {
     const fetchPeople = async () => {
       try {
         setLoading(true);
-        const response = await axios.get('http://localhost:5000/api/persons');
+        const response = await axios.get(API.persons.getAll);
         setPeople(response.data);
         setLoading(false);
       } catch (err) {
@@ -69,7 +71,7 @@ const ExportData: React.FC = () => {
       
       // Use axios to download the file
       const response = await axios({
-        url: 'http://localhost:5000/api/export/all',
+        url: API.export.all,
         method: 'GET',
         responseType: 'blob',
       });
@@ -114,7 +116,7 @@ const ExportData: React.FC = () => {
       
       // Use axios to download the file
       const response = await axios({
-        url: `http://localhost:5000/api/export/person/${person._id}`,
+        url: API.export.person(person._id),
         method: 'GET',
         responseType: 'blob',
       });

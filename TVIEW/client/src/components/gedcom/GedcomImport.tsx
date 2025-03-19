@@ -1,3 +1,4 @@
+// src/components/gedcom/GedcomImport.tsx
 import React, { useState } from 'react';
 import { 
   Button, 
@@ -17,6 +18,7 @@ import {
   Alert
 } from '@mui/material';
 import axios from 'axios';
+import { API } from '../../config/api';
 
 const GedcomImport: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -54,7 +56,7 @@ const GedcomImport: React.FC = () => {
     formData.append('gedcomFile', selectedFile);
     
     try {
-      const response = await axios.post('http://localhost:5000/api/gedcom/upload', formData, {
+      const response = await axios.post(API.gedcom.upload, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         },
