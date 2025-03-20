@@ -26,14 +26,15 @@ class GedcomService {
    */
   async parseGedcomFile(filePath: string): Promise<any> {
     try {
-      // Import the parser using the updated package
-      const { parse } = require('@lewisl9029/gedcom-parser');
+      // Import the gedcom-js parser
+      const GedcomParser = require('gedcom-js');
       
       // Read the file content
       const gedcomContent = fs.readFileSync(filePath, 'utf8');
       
-      // Parse the content
-      const parsedData = parse(gedcomContent);
+      // Create a parser instance and parse the content
+      const parser = new GedcomParser();
+      const parsedData = parser.parse(gedcomContent);
       
       return parsedData;
     } catch (error) {
