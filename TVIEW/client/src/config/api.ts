@@ -38,7 +38,11 @@ export const API = {
     gedcom: {
         upload: `${API_BASE_URL}/gedcom/upload`
     },
-    
+    // db clear
+    db: {
+        clear: '/api/db/clear'
+      },
+
     // Export endpoints
     export: {
         all: `${API_BASE_URL}/export/all`,
@@ -48,15 +52,6 @@ export const API = {
     // Health check
     health: `${API_BASE_URL}/health`
 };
-
-// In your API config file (src/config/api.ts or similar)
-export const API = {
-    // ... other API endpoints
-    db: {
-      clear: '/api/db/clear'
-    }
-  };
-
 
 
 export default API;
