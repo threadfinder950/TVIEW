@@ -20,32 +20,33 @@ class GedcomService {
   async parseGedcomFile(filePath: string): Promise<any[]> {
     try {
       const parseGedcomModule = require('parse-gedcom');
-
+  
       const { size } = await fs.promises.stat(filePath);
       logger.info(`Starting GEDCOM file import: ${filePath} (${(size / 1024).toFixed(2)} KB)`);
-
+  
       const gedcomContent = await fs.promises.readFile(filePath, 'utf8');
       logger.info(`GEDCOM file successfully read, size: ${gedcomContent.length} characters`);
-
+  
       const parsedData = parseGedcomModule.parse(gedcomContent);
-
+  
       // Ensure parsedData.children exists and is an array
       const gedcomRecords = parsedData.children || [];
-
+  
       if (!Array.isArray(gedcomRecords)) {
         throw new Error("Parsed GEDCOM data does not contain a valid 'children' array");
       }
-
+  
+      // 🔍 LOG THE FIRST FEW RECORDS FOR DEBUGGING
+      console.log("🔍 DEBUG: First 5 GEDCOM Records:", JSON.stringify(gedcomRecords.slice(0, 5), null, 2));
+  
       logger.info(`Parsed ${gedcomRecords.length} total records from GEDCOM file`);
-      logger.debug('Sample parsed GEDCOM records:', JSON.stringify(gedcomRecords.slice(0, 3), null, 2));
-
       return gedcomRecords;
     } catch (error) {
       logger.error(`Error parsing GEDCOM file: ${error.message}`, { stack: error.stack });
       throw new Error(`Failed to parse GEDCOM file: ${error.message}`);
     }
   }
-
+  
   /**
    * Imports GEDCOM data into the database.
    * @param {Array} gedcomData - Parsed GEDCOM data.
