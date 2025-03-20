@@ -11,49 +11,54 @@ interface ImportStats {
   errors: string[];
 }
 
-/**
- * Service to handle GEDCOM file parsing and database import
- */
 class GedcomService {
   /**
-   * Parse a GEDCOM file and return structured data
-   * @param {string} filePath - Path to the GEDCOM file
-   * @returns {Object} Parsed GEDCOM data
+   * Parses a GEDCOM file and returns structured data.
+   * @param {string} filePath - Path to the GEDCOM file.
+   * @returns {Array} Parsed GEDCOM data.
    */
-  async parseGedcomFile(filePath: string): Promise<any> {
+  async parseGedcomFile(filePath: string): Promise<any[]> {
     try {
-      // Import the module
       const parseGedcomModule = require('parse-gedcom');
-      
-      // Read the file content
-      const gedcomContent = fs.readFileSync(filePath, 'utf8');
-      
-      // Use the parse method specifically
+
+      const { size } = await fs.promises.stat(filePath);
+      logger.info(`Starting GEDCOM file import: ${filePath} (${(size / 1024).toFixed(2)} KB)`);
+
+      const gedcomContent = await fs.promises.readFile(filePath, 'utf8');
+      logger.info(`GEDCOM file successfully read, size: ${gedcomContent.length} characters`);
+
       const parsedData = parseGedcomModule.parse(gedcomContent);
-      
-      // Add logging to see the structure
-      console.log('Parsed data structure sample:', 
-        JSON.stringify(parsedData.slice(0, 3), null, 2));
-      
-      return parsedData;
-    } catch (error) {
-      if (error instanceof Error) {
-        logger.error(`Error parsing GEDCOM file: ${error.message}`);
-        throw new Error(`Failed to parse GEDCOM file: ${error.message}`);
-      } else {
-        logger.error('Unknown error parsing GEDCOM file');
-        throw new Error('Failed to parse GEDCOM file');
+
+      // Ensure parsedData.children exists and is an array
+      const gedcomRecords = parsedData.children || [];
+
+      if (!Array.isArray(gedcomRecords)) {
+        throw new Error("Parsed GEDCOM data does not contain a valid 'children' array");
       }
+
+      logger.info(`Parsed ${gedcomRecords.length} total records from GEDCOM file`);
+      logger.debug('Sample parsed GEDCOM records:', JSON.stringify(gedcomRecords.slice(0, 3), null, 2));
+
+      return gedcomRecords;
+    } catch (error) {
+      logger.error(`Error parsing GEDCOM file: ${error.message}`, { stack: error.stack });
+      throw new Error(`Failed to parse GEDCOM file: ${error.message}`);
     }
   }
 
   /**
-   * Import GEDCOM data into the database
-   * @param {Object} gedcomData - Parsed GEDCOM data
-   * @returns {Object} Import statistics
+   * Imports GEDCOM data into the database.
+   * @param {Array} gedcomData - Parsed GEDCOM data.
+   * @returns {Object} Import statistics.
    */
-  async importToDatabase(gedcomData: any): Promise<ImportStats> {
+  async importToDatabase(gedcomData: any[]): Promise<ImportStats> {
     try {
+      if (!Array.isArray(gedcomData)) {
+        throw new Error("GEDCOM data is not an array");
+      }
+
+      logger.info(`Starting GEDCOM import: ${gedcomData.length} records found`);
+
       const stats: ImportStats = {
         individuals: 0,
         families: 0,
@@ -61,294 +66,134 @@ class GedcomService {
         errors: []
       };
 
-      // Process individuals
-      const individualMap = new Map<string, string>(); // Map GEDCOM IDs to database IDs
-      
-      // parse-gedcom returns an array of records
-      // We need to find individual and family records
+      const individualMap = new Map<string, string>();
 
-      // First pass: extract individuals (INDI records)
-      const individuals = gedcomData.filter((record: any) => record.tag === 'INDI');
-      
+      // Process Individuals (INDI)
+      const individuals = gedcomData.filter((record) => record.type === 'INDI');
+      logger.info(`Processing ${individuals.length} individuals...`);
+
       for (const individual of individuals) {
         try {
+          const individualId = individual.data?.pointer;
+          if (!individualId) {
+            logger.warn(`Skipping individual with missing pointer: ${JSON.stringify(individual, null, 2)}`);
+            continue;
+          }
+
+          logger.debug(`Processing individual: ${individualId}`);
+
           const person = await this.createPersonFromGedcom(individual);
-          individualMap.set(individual.pointer, person._id.toString());
+          individualMap.set(individualId, person._id.toString());
           stats.individuals++;
         } catch (error) {
-          if (error instanceof Error) {
-            stats.errors.push(`Error importing individual ${individual.pointer}: ${error.message}`);
-          } else {
-            stats.errors.push(`Error importing individual ${individual.pointer}`);
-          }
+          stats.errors.push(`Error importing individual: ${error.message}`);
         }
       }
 
-      // Second pass: extract families (FAM records)
-      const families = gedcomData.filter((record: any) => record.tag === 'FAM');
-      
+      logger.info(`Imported ${stats.individuals} individuals successfully`);
+
+      // Process Families (FAM)
+      const families = gedcomData.filter((record) => record.type === 'FAM');
+      logger.info(`Processing ${families.length} families...`);
+
       for (const family of families) {
         try {
           await this.createRelationshipsFromFamily(family, individualMap);
           stats.families++;
         } catch (error) {
-          if (error instanceof Error) {
-            stats.errors.push(`Error importing family ${family.pointer}: ${error.message}`);
-          } else {
-            stats.errors.push(`Error importing family ${family.pointer}`);
-          }
+          stats.errors.push(`Error importing family: ${error.message}`);
         }
       }
 
+      logger.info(`Imported ${stats.families} families successfully`);
+
       return stats;
     } catch (error) {
-      if (error instanceof Error) {
-        logger.error(`Error importing GEDCOM data: ${error.message}`);
-        throw new Error(`Failed to import GEDCOM data: ${error.message}`);
-      } else {
-        logger.error('Unknown error importing GEDCOM data');
-        throw new Error('Failed to import GEDCOM data');
-      }
+      logger.error(`Error importing GEDCOM data: ${error.message}`, { stack: error.stack });
+      throw new Error(`Failed to import GEDCOM data: ${error.message}`);
     }
   }
 
   /**
-   * Create a Person document from GEDCOM individual data
-   * @param {Object} individual - GEDCOM individual record
-   * @returns {Object} Created Person document
+   * Creates a Person document from GEDCOM individual data.
    */
   private async createPersonFromGedcom(individual: any) {
-    // Extract name(s)
+    const individualId = individual.data?.pointer || "Unknown";
+    logger.debug(`Processing individual: ${individualId}`);
+
     const names = [];
-    
-    // Find NAME records in the individual's data
-    const nameData = individual.tree.filter((node: any) => node.tag === 'NAME');
-    
-    if (nameData.length > 0) {
-      for (const name of nameData) {
-        const fullName = name.data || '';
-        // GEDCOM format often has names as "Surname, Given"
-        // or "Given /Surname/"
-        let given = '';
-        let surname = '';
-        
-        if (fullName.includes('/')) {
-          // Format: Given /Surname/
-          const nameParts = fullName.split('/').map((part: string) => part.trim());
-          given = nameParts[0] || '';
-          surname = nameParts[1] || '';
-        } else if (fullName.includes(',')) {
-          // Format: Surname, Given
-          const nameParts = fullName.split(',').map((part: string) => part.trim());
-          surname = nameParts[0] || '';
-          given = nameParts[1] || '';
-        } else {
-          // Just use the whole thing as given name
-          given = fullName;
-        }
-        
-        names.push({
-          given,
-          surname
-        });
-      }
+    const nameData = individual.children?.filter((node: any) => node.type === 'NAME') || [];
+
+    for (const name of nameData) {
+      const fullName = name.data || '';
+      const [given, surname] = fullName.includes('/') ? fullName.split('/').map(s => s.trim()) : [fullName, ''];
+      names.push({ given, surname });
     }
 
-    // Extract birth information
-    let birth = {};
-    const birthData = individual.tree.find((node: any) => node.tag === 'BIRT');
-    
-    if (birthData) {
-      const date = birthData.tree.find((node: any) => node.tag === 'DATE')?.data;
-      const place = birthData.tree.find((node: any) => node.tag === 'PLAC')?.data;
-      
-      birth = {
-        date: date ? new Date(date) : null,
-        place: place || '',
-        notes: ''
-      };
-    }
+    const birth = this.extractEventData(individual, 'BIRT');
+    const death = this.extractEventData(individual, 'DEAT');
 
-    // Extract death information
-    let death = {};
-    const deathData = individual.tree.find((node: any) => node.tag === 'DEAT');
-    
-    if (deathData) {
-      const date = deathData.tree.find((node: any) => node.tag === 'DATE')?.data;
-      const place = deathData.tree.find((node: any) => node.tag === 'PLAC')?.data;
-      
-      death = {
-        date: date ? new Date(date) : null,
-        place: place || '',
-        notes: ''
-      };
-    }
+    const gender = individual.children?.find((node: any) => node.type === 'SEX')?.data || 'U';
 
-    // Extract gender
-    const sexData = individual.tree.find((node: any) => node.tag === 'SEX');
-    const gender = sexData ? sexData.data : 'U';
-
-    // Create person document
     const person = new Person({
       names,
       birth,
       death,
       gender,
       notes: '',
-      sourceId: individual.pointer
+      sourceId: individualId
     });
 
     await person.save();
-    
-    // Create events for this person
-    // Filter for event tags
-    const eventTags = ['RESI', 'OCCU', 'EDUC', 'GRAD', 'MILI', 'EMIG', 'IMMI'];
-    
-    for (const node of individual.tree) {
-      if (eventTags.includes(node.tag)) {
-        try {
-          await this.createEventFromGedcom(node, person._id);
-        } catch (error) {
-          if (error instanceof Error) {
-            logger.error(`Error creating event for person ${person._id}: ${error.message}`);
-          } else {
-            logger.error(`Error creating event for person ${person._id}`);
-          }
-        }
-      }
-    }
+    logger.debug(`Saved person ${individualId} to database (ID: ${person._id})`);
 
     return person;
   }
 
   /**
-   * Create an Event document from GEDCOM event data
-   * @param {Object} gedcomEvent - GEDCOM event record
-   * @param {ObjectId} personId - Database ID of the related person
-   * @returns {Object} Created Event document
+   * Extracts date and place from GEDCOM event.
    */
-  private async createEventFromGedcom(gedcomEvent: any, personId: string) {
-    // Map GEDCOM event tags to our event types
-    const eventTypeMap: Record<string, string> = {
-      'RESI': 'Residence',
-      'OCCU': 'Work',
-      'EDUC': 'Education',
-      'GRAD': 'Education',
-      'MILI': 'Military',
-      'EMIG': 'Travel',
-      'IMMI': 'Travel',
-      // Add more mappings as needed
-    };
-
-    const eventType = (eventTypeMap[gedcomEvent.tag] || 'Custom') as any;
-    
-    // Extract date and place from the event
-    const date = gedcomEvent.tree.find((node: any) => node.tag === 'DATE')?.data;
-    const place = gedcomEvent.tree.find((node: any) => node.tag === 'PLAC')?.data;
-    
-    const event = new Event({
-      person: personId,
-      type: eventType,
-      title: gedcomEvent.tag || 'Unknown Event',
-      description: gedcomEvent.data || '',
-      date: {
-        start: date ? new Date(date) : null,
-        isRange: false
-      },
-      location: {
-        place: place || ''
-      },
-      notes: ''
-    });
-
-    await event.save();
-    return event;
+  private extractEventData(individual: any, eventTag: string) {
+    const eventNode = individual.children?.find((node: any) => node.type === eventTag);
+    return eventNode
+      ? {
+          date: eventNode.children?.find((node: any) => node.type === 'DATE')?.data || null,
+          place: eventNode.children?.find((node: any) => node.type === 'PLAC')?.data || '',
+        }
+      : {};
   }
 
   /**
-   * Create Relationship documents from GEDCOM family data
-   * @param {Object} family - GEDCOM family record
-   * @param {Map} individualMap - Map of GEDCOM IDs to database IDs
-   * @returns {Array} Created Relationship documents
+   * Creates Relationships from GEDCOM family data.
    */
   private async createRelationshipsFromFamily(family: any, individualMap: Map<string, string>) {
+    logger.debug(`Processing family: ${family.data?.pointer || 'Unknown'}`);
+
     const relationships = [];
-    
-    // Find husband and wife
-    const husbandData = family.tree.find((node: any) => node.tag === 'HUSB');
-    const wifeData = family.tree.find((node: any) => node.tag === 'WIFE');
-    
-    const husbandPointer = husbandData?.data;
-    const wifePointer = wifeData?.data;
-    
-    // Create spouse relationship if both husband and wife exist
-    if (husbandPointer && wifePointer) {
-      const husbandId = individualMap.get(husbandPointer);
-      const wifeId = individualMap.get(wifePointer);
-      
-      if (husbandId && wifeId) {
-        // Find marriage info
-        const marriageData = family.tree.find((node: any) => node.tag === 'MARR');
-        let marriageDate = null;
-        
-        if (marriageData) {
-          const datePart = marriageData.tree.find((node: any) => node.tag === 'DATE');
-          if (datePart && datePart.data) {
-            marriageDate = new Date(datePart.data);
+
+    const husbandId = individualMap.get(family.children?.find((node: any) => node.type === 'HUSB')?.data);
+    const wifeId = individualMap.get(family.children?.find((node: any) => node.type === 'WIFE')?.data);
+    const childNodes = family.children?.filter((node: any) => node.type === 'CHIL') || [];
+
+    if (husbandId && wifeId) {
+      relationships.push({ type: 'Spouse', persons: [husbandId, wifeId] });
+    }
+
+    for (const child of childNodes) {
+      const childId = individualMap.get(child.data);
+      if (childId) {
+        [husbandId, wifeId].forEach(parentId => {
+          if (parentId) {
+            relationships.push({ type: 'Parent-Child', persons: [parentId, childId] });
           }
-        }
-        
-        const spouseRelationship = new Relationship({
-          type: 'Spouse',
-          persons: [husbandId, wifeId],
-          date: {
-            start: marriageDate
-          },
-          notes: ''
         });
-        
-        await spouseRelationship.save();
-        relationships.push(spouseRelationship);
       }
     }
 
-    // Create parent-child relationships if children exist
-    const childData = family.tree.filter((node: any) => node.tag === 'CHIL');
-    
-    if (childData.length > 0) {
-      const parents = [];
-      
-      if (husbandPointer) {
-        const husbandId = individualMap.get(husbandPointer);
-        if (husbandId) parents.push(husbandId);
-      }
-      
-      if (wifePointer) {
-        const wifeId = individualMap.get(wifePointer);
-        if (wifeId) parents.push(wifeId);
-      }
-      
-      if (parents.length > 0) {
-        for (const child of childData) {
-          const childPointer = child.data;
-          const dbChildId = individualMap.get(childPointer);
-          
-          if (dbChildId) {
-            for (const parentId of parents) {
-              const parentChildRelationship = new Relationship({
-                type: 'Parent-Child',
-                persons: [parentId, dbChildId]
-              });
-              
-              await parentChildRelationship.save();
-              relationships.push(parentChildRelationship);
-            }
-          }
-        }
-      }
+    if (relationships.length > 0) {
+      await Relationship.insertMany(relationships);
+      logger.debug(`Saved ${relationships.length} relationships for family`);
     }
-
-    return relationships;
   }
 }
 
