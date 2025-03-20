@@ -29,25 +29,27 @@ class GedcomService {
       // Import the module
       const parseGedcomModule = require('parse-gedcom');
       
-      // Log what we're getting to debug
-      console.log('Module type:', typeof parseGedcomModule);
-      console.log('Module keys:', Object.keys(parseGedcomModule));
-      
       // Read the file content
       const gedcomContent = fs.readFileSync(filePath, 'utf8');
       
-      // Try these different approaches
-      let parsedData;
+      // Use the parse method specifically
+      const parsedData = parseGedcomModule.parse(gedcomContent);
       
-      if (typeof parseGedcomModule === 'function') {
-        parsedData = parseGedcomModule(gedcomContent);
-      } else if (parseGedcomModule.default && typeof parseGedcomModule.default === 'function') {
-        parsedData = parseGedcomModule.default(gedcomContent);
-      } else if (parseGedcomModule.parse && typeof parseGedcomModule.parse === 'function') {
-        parsedData = parseGedcomModule.parse(gedcomContent);
+      // Add logging to see the structure
+      console.log('Parsed data structure sample:', 
+        JSON.stringify(parsedData.slice(0, 3), null, 2));
+      
+      return parsedData;
+    } catch (error) {
+      if (error instanceof Error) {
+        logger.error(`Error parsing GEDCOM file: ${error.message}`);
+        throw new Error(`Failed to parse GEDCOM file: ${error.message}`);
       } else {
-        throw new Error('Could not find a valid parser function in the module');
+        logger.error('Unknown error parsing GEDCOM file');
+        throw new Error('Failed to parse GEDCOM file');
       }
+    }
+  }
       
       return parsedData;
     } catch (error) {
