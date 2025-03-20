@@ -10,7 +10,7 @@ import {
 } from '@mui/material';
 import axios from 'axios';
 import EventEditor from '../forms/EventEditor';
-import { API } from 'src/config/api';
+import { API } from '../../config/api';
 
 const EventsPage = () => {
   const [events, setEvents] = useState([]);
