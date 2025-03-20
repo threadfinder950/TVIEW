@@ -38,9 +38,10 @@ import axios from 'axios';
 
 import GedcomImport from './components/gedcom/GedcomImport';
 import PersonTimeline from './components/timeline/PersonTimeline';
-import EventEditor from './components/forms/EventEditor';
+import EventsPage from './components/events/EventsPage';
 import ExportData from './components/export/ExportData';
 import { API } from './config/api';
+import DatabaseManager from './components/admin/DatabaseManager';
 
 const theme = createTheme({
   palette: {
@@ -187,12 +188,7 @@ const PeopleList = () => {
   );
 };
 
-// Events Placeholder
-const EventsPage = () => {
-  return (
-    <Typography variant="h4">Events Management</Typography>
-  );
-};
+
 
 // Settings Placeholder
 const SettingsPage = () => {
@@ -274,6 +270,25 @@ function App() {
                 </ListItemButton>
               </ListItem>
             </List>
+
+            <Divider />
+            
+<List>
+  <ListItem component={Link} to="/settings" disablePadding>
+    <ListItemButton>
+      <ListItemIcon><SettingsIcon /></ListItemIcon>
+      <ListItemText primary="Settings" />
+    </ListItemButton>
+  </ListItem>
+  
+  {/* Add this new item */}
+  <ListItem component={Link} to="/admin/database" disablePadding>
+    <ListItemButton>
+      <ListItemIcon><SettingsIcon /></ListItemIcon>
+      <ListItemText primary="Database Management" />
+    </ListItemButton>
+  </ListItem>
+</List>
           </Drawer>
           
           <Box
@@ -291,7 +306,9 @@ function App() {
                 <Route path="/people" element={<PeopleList />} />
                 <Route path="/people/:id" element={<PersonDetails />} />
                 <Route path="/events" element={<EventsPage />} />
+                <Route path="/events/edit/:id" element={<EventEditor />} />
                 <Route path="/export" element={<ExportData />} />
+                <Route path="/admin/database" element={<DatabaseManager />} />
                 <Route path="/settings" element={<SettingsPage />} />
               </Routes>
             </Container>
