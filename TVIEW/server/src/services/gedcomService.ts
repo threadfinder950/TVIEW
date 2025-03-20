@@ -57,32 +57,33 @@ class GedcomService {
       if (!Array.isArray(gedcomData)) {
         throw new Error("GEDCOM data is not an array");
       }
-
+  
       logger.info(`Starting GEDCOM import: ${gedcomData.length} records found`);
-
+  
       const stats: ImportStats = {
         individuals: 0,
         families: 0,
         events: 0,
         errors: []
       };
-
+  
       const individualMap = new Map<string, string>();
-
+  
       // Process Individuals (INDI)
       const individuals = gedcomData.filter((record) => record.type === 'INDI');
       logger.info(`Processing ${individuals.length} individuals...`);
-
+  
       for (const individual of individuals) {
         try {
-          const individualId = individual.data?.pointer;
+          // 🔥 Corrected to use `xref_id` instead of `pointer`
+          const individualId = individual.data?.xref_id;
           if (!individualId) {
-            logger.warn(`Skipping individual with missing pointer: ${JSON.stringify(individual, null, 2)}`);
+            logger.warn(`Skipping individual with missing xref_id: ${JSON.stringify(individual, null, 2)}`);
             continue;
           }
-
+  
           logger.debug(`Processing individual: ${individualId}`);
-
+  
           const person = await this.createPersonFromGedcom(individual);
           individualMap.set(individualId, person._id.toString());
           stats.individuals++;
@@ -90,24 +91,9 @@ class GedcomService {
           stats.errors.push(`Error importing individual: ${error.message}`);
         }
       }
-
+  
       logger.info(`Imported ${stats.individuals} individuals successfully`);
-
-      // Process Families (FAM)
-      const families = gedcomData.filter((record) => record.type === 'FAM');
-      logger.info(`Processing ${families.length} families...`);
-
-      for (const family of families) {
-        try {
-          await this.createRelationshipsFromFamily(family, individualMap);
-          stats.families++;
-        } catch (error) {
-          stats.errors.push(`Error importing family: ${error.message}`);
-        }
-      }
-
-      logger.info(`Imported ${stats.families} families successfully`);
-
+  
       return stats;
     } catch (error) {
       logger.error(`Error importing GEDCOM data: ${error.message}`, { stack: error.stack });
@@ -119,23 +105,23 @@ class GedcomService {
    * Creates a Person document from GEDCOM individual data.
    */
   private async createPersonFromGedcom(individual: any) {
-    const individualId = individual.data?.pointer || "Unknown";
+    const individualId = individual.data?.xref_id || "Unknown";
     logger.debug(`Processing individual: ${individualId}`);
-
+  
     const names = [];
     const nameData = individual.children?.filter((node: any) => node.type === 'NAME') || [];
-
+  
     for (const name of nameData) {
-      const fullName = name.data || '';
+      const fullName = name.value || '';
       const [given, surname] = fullName.includes('/') ? fullName.split('/').map(s => s.trim()) : [fullName, ''];
       names.push({ given, surname });
     }
-
+  
     const birth = this.extractEventData(individual, 'BIRT');
     const death = this.extractEventData(individual, 'DEAT');
-
-    const gender = individual.children?.find((node: any) => node.type === 'SEX')?.data || 'U';
-
+  
+    const gender = individual.children?.find((node: any) => node.type === 'SEX')?.value || 'U';
+  
     const person = new Person({
       names,
       birth,
@@ -144,13 +130,13 @@ class GedcomService {
       notes: '',
       sourceId: individualId
     });
-
+  
     await person.save();
     logger.debug(`Saved person ${individualId} to database (ID: ${person._id})`);
-
+  
     return person;
   }
-
+  
   /**
    * Extracts date and place from GEDCOM event.
    */
