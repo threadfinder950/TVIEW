@@ -1,4 +1,3 @@
-import { parse } from '@gedcom/parser';
 import fs from 'fs';
 import { logger } from '../utils/logger';
 import Person from '../models/Person';
@@ -27,12 +26,24 @@ class GedcomService {
    */
   async parseGedcomFile(filePath: string): Promise<any> {
     try {
+      // Import the parse-gedcom parser
+      const parseGedcom = require('parse-gedcom');
+      
+      // Read the file content
       const gedcomContent = fs.readFileSync(filePath, 'utf8');
-      const parsedData = parse(gedcomContent);
+      
+      // Parse the content
+      const parsedData = parseGedcom(gedcomContent);
+      
       return parsedData;
     } catch (error) {
-      logger.error(`Error parsing GEDCOM file: ${error.message}`);
-      throw new Error(`Failed to parse GEDCOM file: ${error.message}`);
+      if (error instanceof Error) {
+        logger.error(`Error parsing GEDCOM file: ${error.message}`);
+        throw new Error(`Failed to parse GEDCOM file: ${error.message}`);
+      } else {
+        logger.error('Unknown error parsing GEDCOM file');
+        throw new Error('Failed to parse GEDCOM file');
+      }
     }
   }
 
