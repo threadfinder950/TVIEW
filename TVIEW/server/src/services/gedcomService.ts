@@ -26,14 +26,28 @@ class GedcomService {
    */
   async parseGedcomFile(filePath: string): Promise<any> {
     try {
-      // Import the parse-gedcom parser
-      const parseGedcom = require('parse-gedcom');
+      // Import the module
+      const parseGedcomModule = require('parse-gedcom');
+      
+      // Log what we're getting to debug
+      console.log('Module type:', typeof parseGedcomModule);
+      console.log('Module keys:', Object.keys(parseGedcomModule));
       
       // Read the file content
       const gedcomContent = fs.readFileSync(filePath, 'utf8');
       
-      // Parse the content
-      const parsedData = parseGedcom(gedcomContent);
+      // Try these different approaches
+      let parsedData;
+      
+      if (typeof parseGedcomModule === 'function') {
+        parsedData = parseGedcomModule(gedcomContent);
+      } else if (parseGedcomModule.default && typeof parseGedcomModule.default === 'function') {
+        parsedData = parseGedcomModule.default(gedcomContent);
+      } else if (parseGedcomModule.parse && typeof parseGedcomModule.parse === 'function') {
+        parsedData = parseGedcomModule.parse(gedcomContent);
+      } else {
+        throw new Error('Could not find a valid parser function in the module');
+      }
       
       return parsedData;
     } catch (error) {
