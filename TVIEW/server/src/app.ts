@@ -13,7 +13,7 @@ import gedcomRoutes from './routes/gedcomRoutes';
 import personRoutes from './routes/personRoutes';
 import eventRoutes from './routes/eventRoutes';
 import exportRoutes from './routes/exportRoutes';
-
+import dbRoutes from './routes/dbRoutes';
 // Load environment variables
 dotenv.config();
 
@@ -39,6 +39,7 @@ app.use('/api/gedcom', gedcomRoutes);
 app.use('/api/persons', personRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/export', exportRoutes);
+app.use('/api/db', dbRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

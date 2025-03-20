@@ -49,4 +49,14 @@ export const API = {
     health: `${API_BASE_URL}/health`
 };
 
+// In your API config file (src/config/api.ts or similar)
+export const API = {
+    // ... other API endpoints
+    db: {
+      clear: '/api/db/clear'
+    }
+  };
+
+
+
 export default API;
