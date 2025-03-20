@@ -117,6 +117,7 @@ class GedcomService {
       names.push({ given, surname });
     }
   
+    // 🔥 Fixed birth and death extraction
     const birth = this.extractEventData(individual, 'BIRT');
     const death = this.extractEventData(individual, 'DEAT');
   
@@ -137,17 +138,18 @@ class GedcomService {
     return person;
   }
   
-  /**
-   * Extracts date and place from GEDCOM event.
-   */
+  
   private extractEventData(individual: any, eventTag: string) {
     const eventNode = individual.children?.find((node: any) => node.type === eventTag);
-    return eventNode
-      ? {
-          date: eventNode.children?.find((node: any) => node.type === 'DATE')?.data || null,
-          place: eventNode.children?.find((node: any) => node.type === 'PLAC')?.data || '',
-        }
-      : {};
+    if (!eventNode) return {};
+  
+    const dateNode = eventNode.children?.find((node: any) => node.type === 'DATE');
+    const placeNode = eventNode.children?.find((node: any) => node.type === 'PLAC');
+  
+    return {
+      date: dateNode?.value ? new Date(dateNode.value) : null, // Ensure correct date parsing
+      place: placeNode?.value || "" // Extract the actual place string
+    };
   }
 
   /**
