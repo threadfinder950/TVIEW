@@ -26,13 +26,15 @@ class GedcomService {
    */
   async parseGedcomFile(filePath: string): Promise<any> {
     try {
-      // We require this here to avoid issues with TypeScript
-      // In a real app, you'd create proper type definitions for this module
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const gedcomParser = require('gedcom-parser');
+      // Import the parser using the updated package
+      const { parse } = require('@lewisl9029/gedcom-parser');
       
+      // Read the file content
       const gedcomContent = fs.readFileSync(filePath, 'utf8');
-      const parsedData = gedcomParser.parse(gedcomContent);
+      
+      // Parse the content
+      const parsedData = parse(gedcomContent);
+      
       return parsedData;
     } catch (error) {
       if (error instanceof Error) {
