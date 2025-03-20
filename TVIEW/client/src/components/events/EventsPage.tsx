@@ -9,8 +9,8 @@ import {
   DialogContent
 } from '@mui/material';
 import axios from 'axios';
-import EventEditor from './components/forms/EventEditor';
-import { API } from './config/api';
+import EventEditor from '../forms/EventEditor';
+import { API } from '../../../config/api';
 
 const EventsPage = () => {
   const [events, setEvents] = useState([]);
