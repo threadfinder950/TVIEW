@@ -1,3 +1,4 @@
+// Fix for src/controllers/eventController.ts
 import { Request, Response } from 'express';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ErrorResponse } from '../middleware/errorMiddleware';
@@ -10,7 +11,7 @@ import Event from '../models/Event';
  */
 export const getAllEvents = asyncHandler(async (req: Request, res: Response) => {
   const events = await Event.find()
-    .populate('persons', 'names')  // Changed from person to persons
+    .populate('persons', 'names')  // Populate persons with their names
     .sort('date.start');
   
   res.json(events);
@@ -23,7 +24,7 @@ export const getAllEvents = asyncHandler(async (req: Request, res: Response) => 
  */
 export const getEventById = asyncHandler(async (req: Request, res: Response) => {
   const event = await Event.findById(req.params.id)
-    .populate('persons', 'names');  // Changed from person to persons
+    .populate('persons', 'names');  // Populate persons with their names
   
   if (!event) {
     throw new ErrorResponse('Event not found', 404);
@@ -37,24 +38,26 @@ export const getEventById = asyncHandler(async (req: Request, res: Response) => 
  * @route   POST /api/events
  * @access  Public
  */
-// In src/controllers/eventController.ts - createEvent function
-
 export const createEvent = asyncHandler(async (req: Request, res: Response) => {
   try {
     const data = {...req.body};
     
     // Ensure compatibility between person and persons fields
     if (data.persons && Array.isArray(data.persons) && data.persons.length > 0) {
-      // If persons array is provided, also set person field to first person
+      // If persons array is provided, also set person field to first person for backward compatibility
       data.person = data.persons[0];
-    } else if (data.person && (!data.persons || !Array.isArray(data.persons))) {
+    } else if (data.person && (!data.persons || !Array.isArray(data.persons) || data.persons.length === 0)) {
       // If only person is provided, create persons array
       data.persons = [data.person];
     }
     
     const event = new Event(data);
     const newEvent = await event.save();
-    res.status(201).json(newEvent);
+    
+    // Populate the persons field for the response
+    const populatedEvent = await Event.findById(newEvent._id).populate('persons', 'names');
+    
+    res.status(201).json(populatedEvent);
   } catch (error) {
     console.error('Error creating event:', error);
     if (error instanceof Error) {
@@ -64,6 +67,7 @@ export const createEvent = asyncHandler(async (req: Request, res: Response) => {
     }
   }
 });
+
 /**
  * @desc    Update an event
  * @route   PATCH /api/events/:id
@@ -83,7 +87,7 @@ export const updateEvent = asyncHandler(async (req: Request, res: Response) => {
     if (data.persons && Array.isArray(data.persons) && data.persons.length > 0) {
       // If persons array is provided, also set person field to first person
       data.person = data.persons[0];
-    } else if (data.person && (!data.persons || !Array.isArray(data.persons))) {
+    } else if (data.person && (!data.persons || !Array.isArray(data.persons) || data.persons.length === 0)) {
       // If only person is provided, create persons array
       data.persons = [data.person];
     }
@@ -92,7 +96,11 @@ export const updateEvent = asyncHandler(async (req: Request, res: Response) => {
     Object.assign(event, data);
     
     const updatedEvent = await event.save();
-    res.json(updatedEvent);
+    
+    // Populate the persons field for the response
+    const populatedEvent = await Event.findById(updatedEvent._id).populate('persons', 'names');
+    
+    res.json(populatedEvent);
   } catch (error) {
     console.error('Error updating event:', error);
     if (error instanceof Error) {

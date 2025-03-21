@@ -51,6 +51,7 @@ interface EventEditorProps {
   eventId?: string; // Optional - for editing existing events
   onSave?: () => void;
   onCancel?: () => void;
+  onClose?: () => void; // Added for better compatibility
 }
 
 const initialFormData: EventFormData = {
@@ -83,7 +84,7 @@ const eventTypes = [
   'Custom'
 ];
 
-const EventEditor: React.FC<EventEditorProps> = ({ personId, eventId, onSave, onCancel }) => {
+const EventEditor: React.FC<EventEditorProps> = ({ personId, eventId, onSave, onCancel, onClose }) => {
   // Enhanced to include selectedPersonIds as an array
   const [formData, setFormData] = useState<EventFormData & { selectedPersonIds: string[] }>({
     ...initialFormData,
@@ -121,12 +122,23 @@ const EventEditor: React.FC<EventEditorProps> = ({ personId, eventId, onSave, on
             }
           };
           
-          // Handle the conversion of persons field
-          const personsArray = Array.isArray(response.data.persons) 
-            ? response.data.persons.map((p: any) => typeof p === 'object' ? p._id : p)
-            : response.data.person  // Handle legacy data with single person
-              ? [response.data.person]
-              : [];
+          // Handle the conversion of persons field to selectedPersonIds
+          let personsArray: string[] = [];
+          
+          if (Array.isArray(response.data.persons) && response.data.persons.length > 0) {
+            personsArray = response.data.persons.map((p: any) => {
+              return typeof p === 'object' && p._id ? p._id : 
+                     typeof p === 'string' ? p : '';
+            }).filter(Boolean);
+          } else if (response.data.person) {
+            // Handle legacy data with single person
+            const personId = typeof response.data.person === 'object' ? 
+              response.data.person._id : response.data.person;
+            
+            if (personId) {
+              personsArray = [personId];
+            }
+          }
           
           setFormData({
             ...eventData,
@@ -267,7 +279,7 @@ const EventEditor: React.FC<EventEditorProps> = ({ personId, eventId, onSave, on
       setSuccess(true);
       setLoading(false);
       
-      // Reset form after successful submit
+      // Reset form after successful submit if creating a new event
       if (!eventId) {
         setFormData({
           ...initialFormData,
@@ -295,6 +307,9 @@ const EventEditor: React.FC<EventEditorProps> = ({ personId, eventId, onSave, on
     if (onCancel) {
       onCancel();
     }
+    if (onClose) {
+      onClose();
+    }
   };
   
   // Helper function to get person name by ID
@@ -319,7 +334,7 @@ const EventEditor: React.FC<EventEditorProps> = ({ personId, eventId, onSave, on
         </Alert>
       )}
       
-      {loading && !eventId ? (
+      {loading && !formData.title ? (
         <Box display="flex" justifyContent="center" p={3}>
           <CircularProgress />
         </Box>

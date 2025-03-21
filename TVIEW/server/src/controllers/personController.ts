@@ -97,14 +97,22 @@ export const deletePerson = asyncHandler(async (req: Request, res: Response) => 
  * @access  Public
  */
 export const getPersonEvents = asyncHandler(async (req: Request, res: Response) => {
-  // Updated to find events where the person is in the persons array
-  const events = await Event.find({ persons: req.params.id })
-    .populate('persons', 'names')
-    .sort('date.start');
+  // Find person first to verify it exists
+  const person = await Person.findById(req.params.id);
+  
+  if (!person) {
+    throw new ErrorResponse('Person not found', 404);
+  }
+  
+  // Find all events where the person is in the persons array
+  const events = await Event.find({ 
+    persons: req.params.id 
+  })
+  .populate('persons', 'names')
+  .sort('date.start');
   
   res.json(events);
 });
-
 /**
  * @desc    Get a person's relationships
  * @route   GET /api/persons/:id/relationships
