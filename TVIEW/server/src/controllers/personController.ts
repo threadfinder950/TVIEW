@@ -97,7 +97,10 @@ export const deletePerson = asyncHandler(async (req: Request, res: Response) => 
  * @access  Public
  */
 export const getPersonEvents = asyncHandler(async (req: Request, res: Response) => {
-  const events = await Event.find({ person: req.params.id }).sort('date.start');
+  // Updated to find events where the person is in the persons array
+  const events = await Event.find({ persons: req.params.id })
+    .populate('persons', 'names')
+    .sort('date.start');
   
   res.json(events);
 });

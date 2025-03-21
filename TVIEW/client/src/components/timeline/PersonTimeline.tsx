@@ -42,11 +42,19 @@ import axios from 'axios';
 import EventEditor from '../forms/EventEditor';
 import { API } from '../../config/api';
 
+// Update the Event interface
 interface Event {
   _id: string;
   type: string;
   title: string;
   description?: string;
+  persons: Array<{
+    _id: string;
+    names: Array<{
+      given: string;
+      surname: string;
+    }>;
+  }>;
   date: {
     start?: Date;
     end?: Date;
@@ -57,6 +65,27 @@ interface Event {
   };
   notes?: string;
 }
+
+// Add a helper function to display participants
+const getParticipants = (event: Event, currentPersonId: string): string => {
+  if (!event.persons || event.persons.length <= 1) {
+    return '';
+  }
+  
+  // Filter out the current person if they're in the list
+  const otherPersons = event.persons.filter(p => p._id !== currentPersonId);
+  
+  if (otherPersons.length === 0) {
+    return '';
+  }
+  
+  return otherPersons.map(person => {
+    if (person.names && person.names.length > 0) {
+      return `${person.names[0].given} ${person.names[0].surname}`;
+    }
+    return 'Unknown Person';
+  }).join(', ');
+};
 
 interface PersonTimelineProps {
   personId: string;
@@ -288,6 +317,13 @@ const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName })
                           </Typography>
                         )}
                         
+                        {/* Add this section to display other participants */}
+                        {getParticipants(event, personId) && (
+                          <Typography variant="body2" sx={{ mb: 1 }}>
+                            <strong>Also involving:</strong> {getParticipants(event, personId)}
+                          </Typography>
+                        )}
+                        
                         {event.notes && (
                           <Typography variant="body2" color="text.secondary">
                             <strong>Notes:</strong> {event.notes}
@@ -295,24 +331,7 @@ const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName })
                         )}
                       </Grid>
                       
-                      <Grid item>
-                        <Box>
-                          <IconButton
-                            size="small"
-                            onClick={() => setEditingEventId(event._id)}
-                            title="Edit"
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDeleteEvent(event._id)}
-                            title="Delete"
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Box>
-                      </Grid>
+                      {/* Rest of the existing component... */}
                     </Grid>
                   </Paper>
                 </TimelineContent>

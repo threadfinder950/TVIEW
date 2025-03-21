@@ -10,7 +10,7 @@ import Event from '../models/Event';
  */
 export const getAllEvents = asyncHandler(async (req: Request, res: Response) => {
   const events = await Event.find()
-    .populate('person', 'names')
+    .populate('persons', 'names')  // Changed from person to persons
     .sort('date.start');
   
   res.json(events);
@@ -23,7 +23,7 @@ export const getAllEvents = asyncHandler(async (req: Request, res: Response) => 
  */
 export const getEventById = asyncHandler(async (req: Request, res: Response) => {
   const event = await Event.findById(req.params.id)
-    .populate('person', 'names');
+    .populate('persons', 'names');  // Changed from person to persons
   
   if (!event) {
     throw new ErrorResponse('Event not found', 404);
@@ -37,32 +37,70 @@ export const getEventById = asyncHandler(async (req: Request, res: Response) => 
  * @route   POST /api/events
  * @access  Public
  */
-export const createEvent = asyncHandler(async (req: Request, res: Response) => {
-  const event = new Event(req.body);
-  
-  const newEvent = await event.save();
-  
-  res.status(201).json(newEvent);
-});
+// In src/controllers/eventController.ts - createEvent function
 
+export const createEvent = asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const data = {...req.body};
+    
+    // Ensure compatibility between person and persons fields
+    if (data.persons && Array.isArray(data.persons) && data.persons.length > 0) {
+      // If persons array is provided, also set person field to first person
+      data.person = data.persons[0];
+    } else if (data.person && (!data.persons || !Array.isArray(data.persons))) {
+      // If only person is provided, create persons array
+      data.persons = [data.person];
+    }
+    
+    const event = new Event(data);
+    const newEvent = await event.save();
+    res.status(201).json(newEvent);
+  } catch (error) {
+    console.error('Error creating event:', error);
+    if (error instanceof Error) {
+      throw new ErrorResponse(`Failed to create event: ${error.message}`, 400);
+    } else {
+      throw new ErrorResponse('Failed to create event', 400);
+    }
+  }
+});
 /**
  * @desc    Update an event
  * @route   PATCH /api/events/:id
  * @access  Public
  */
 export const updateEvent = asyncHandler(async (req: Request, res: Response) => {
-  const event = await Event.findById(req.params.id);
-  
-  if (!event) {
-    throw new ErrorResponse('Event not found', 404);
+  try {
+    const event = await Event.findById(req.params.id);
+    
+    if (!event) {
+      throw new ErrorResponse('Event not found', 404);
+    }
+    
+    const data = {...req.body};
+    
+    // Ensure compatibility between person and persons fields
+    if (data.persons && Array.isArray(data.persons) && data.persons.length > 0) {
+      // If persons array is provided, also set person field to first person
+      data.person = data.persons[0];
+    } else if (data.person && (!data.persons || !Array.isArray(data.persons))) {
+      // If only person is provided, create persons array
+      data.persons = [data.person];
+    }
+    
+    // Update fields
+    Object.assign(event, data);
+    
+    const updatedEvent = await event.save();
+    res.json(updatedEvent);
+  } catch (error) {
+    console.error('Error updating event:', error);
+    if (error instanceof Error) {
+      throw new ErrorResponse(`Failed to update event: ${error.message}`, 400);
+    } else {
+      throw new ErrorResponse('Failed to update event', 400);
+    }
   }
-  
-  // Update fields
-  Object.assign(event, req.body);
-  
-  const updatedEvent = await event.save();
-  
-  res.json(updatedEvent);
 });
 
 /**

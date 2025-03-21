@@ -1,3 +1,4 @@
+// src/models/Event.ts - Modified to support both schemas
 import mongoose from 'mongoose';
 
 export type EventType = 'Work' | 'Education' | 'Residence' | 'Military' | 'Medical' | 'Travel' | 'Achievement' | 'Custom';
@@ -17,7 +18,9 @@ export interface IEventLocation {
 }
 
 export interface IEvent extends mongoose.Document {
-  person: mongoose.Types.ObjectId;
+  // Keep both fields for compatibility
+  person?: mongoose.Types.ObjectId;
+  persons: mongoose.Types.ObjectId[];
   type: EventType;
   title: string;
   description?: string;
@@ -32,16 +35,23 @@ export interface IEvent extends mongoose.Document {
 }
 
 const eventSchema = new mongoose.Schema<IEvent>({
+  // Keep the original person field for compatibility
   person: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Person',
-    required: true
+    required: false // Make it optional since we're transitioning
   },
+  // Add the new persons array
+  persons: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Person'
+  }],
   type: {
     type: String,
     enum: ['Work', 'Education', 'Residence', 'Military', 'Medical', 'Travel', 'Achievement', 'Custom'],
     required: true
   },
+  // Other fields remain the same
   title: {
     type: String,
     required: true
@@ -71,6 +81,21 @@ const eventSchema = new mongoose.Schema<IEvent>({
   customFields: mongoose.Schema.Types.Mixed
 }, {
   timestamps: true
+});
+
+// Add a pre-save hook to ensure consistency between person and persons
+eventSchema.pre('save', function(next) {
+  // If persons array has items but person is not set, use the first person
+  if (this.persons && this.persons.length > 0 && !this.person) {
+    this.person = this.persons[0];
+  }
+  
+  // If person is set but persons array is empty, add person to persons
+  if (this.person && (!this.persons || this.persons.length === 0)) {
+    this.persons = [this.person];
+  }
+  
+  next();
 });
 
 export default mongoose.model<IEvent>('Event', eventSchema);

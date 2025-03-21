@@ -16,11 +16,16 @@ import {
   Snackbar,
   Alert,
   SelectChangeEvent,
-  Box
+  Box,
+  FormHelperText,
+  CircularProgress,
+  Chip,
+  OutlinedInput
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import axios from 'axios';
 import { API } from '../../config/api';
+import { isValidDate } from '../../utils/dateUtils';
 
 interface EventFormData {
   type: string;
@@ -42,7 +47,7 @@ interface EventFormData {
 }
 
 interface EventEditorProps {
-  personId: string;
+  personId?: string; // Optional - if provided, will add this person automatically
   eventId?: string; // Optional - for editing existing events
   onSave?: () => void;
   onCancel?: () => void;
@@ -79,47 +84,73 @@ const eventTypes = [
 ];
 
 const EventEditor: React.FC<EventEditorProps> = ({ personId, eventId, onSave, onCancel }) => {
-  const [formData, setFormData] = useState<EventFormData>(initialFormData);
+  // Enhanced to include selectedPersonIds as an array
+  const [formData, setFormData] = useState<EventFormData & { selectedPersonIds: string[] }>({
+    ...initialFormData,
+    selectedPersonIds: personId ? [personId] : []
+  });
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<boolean>(false);
+  const [availablePeople, setAvailablePeople] = useState<any[]>([]);
   
   // If eventId is provided, fetch the event data
+  // If no personId is provided or if we're editing, fetch the list of people
   useEffect(() => {
-    if (eventId) {
-      const fetchEvent = async () => {
-        try {
-          setLoading(true);
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        
+        // Always fetch available people for multi-select
+        const peopleResponse = await axios.get(API.persons.getAll);
+        setAvailablePeople(peopleResponse.data);
+        
+        // Fetch event data if editing an existing event
+        if (eventId) {
           const response = await axios.get(API.events.getById(eventId));
           
-          // Convert string dates to Date objects
+          // Convert string dates to Date objects if they're valid
           const eventData = {
             ...response.data,
             date: {
               ...response.data.date,
-              start: response.data.date.start ? new Date(response.data.date.start) : null,
-              end: response.data.date.end ? new Date(response.data.date.end) : null,
+              start: response.data.date.start && isValidDate(response.data.date.start) ? 
+                new Date(response.data.date.start) : null,
+              end: response.data.date.end && isValidDate(response.data.date.end) ? 
+                new Date(response.data.date.end) : null,
             }
           };
           
-          setFormData(eventData);
-          setLoading(false);
-        } catch (err) {
-          let errorMessage = 'Failed to fetch event data';
-          if (axios.isAxiosError(err) && err.response) {
-            errorMessage = err.response.data.message || errorMessage;
-          } else if (err instanceof Error) {
-            errorMessage = err.message;
-          }
-          setError(errorMessage);
-          setLoading(false);
+          // Handle the conversion of persons field
+          const personsArray = Array.isArray(response.data.persons) 
+            ? response.data.persons.map((p: any) => typeof p === 'object' ? p._id : p)
+            : response.data.person  // Handle legacy data with single person
+              ? [response.data.person]
+              : [];
+          
+          setFormData({
+            ...eventData,
+            selectedPersonIds: personsArray
+          });
         }
-      };
-      
-      fetchEvent();
-    }
-  }, [eventId]);
+        
+        setLoading(false);
+      } catch (err) {
+        let errorMessage = 'Failed to fetch data';
+        if (axios.isAxiosError(err) && err.response) {
+          errorMessage = err.response.data.message || errorMessage;
+        } else if (err instanceof Error) {
+          errorMessage = err.message;
+        }
+        setError(errorMessage);
+        setLoading(false);
+      }
+    };
+    
+    loadData();
+  }, [eventId, personId]);
   
+  // Handler for text input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData({
@@ -128,6 +159,7 @@ const EventEditor: React.FC<EventEditorProps> = ({ personId, eventId, onSave, on
     });
   };
   
+  // Handler for select dropdown changes
   const handleSelectChange = (e: SelectChangeEvent) => {
     const { name, value } = e.target;
     setFormData({
@@ -136,6 +168,16 @@ const EventEditor: React.FC<EventEditorProps> = ({ personId, eventId, onSave, on
     });
   };
   
+  // Handler for multiple person selection
+  const handlePersonSelectChange = (event: SelectChangeEvent<string[]>) => {
+    const { value } = event.target;
+    setFormData({
+      ...formData,
+      selectedPersonIds: typeof value === 'string' ? value.split(',') : value,
+    });
+  };
+  
+  // Handler for date changes
   const handleDateChange = (date: Date | null, fieldName: string) => {
     setFormData({
       ...formData,
@@ -146,6 +188,7 @@ const EventEditor: React.FC<EventEditorProps> = ({ personId, eventId, onSave, on
     });
   };
   
+  // Handler for location changes
   const handleLocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData({
@@ -157,6 +200,7 @@ const EventEditor: React.FC<EventEditorProps> = ({ personId, eventId, onSave, on
     });
   };
   
+  // Handler for coordinate changes
   const handleCoordinateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     const numValue = value === '' ? null : parseFloat(value);
@@ -173,6 +217,7 @@ const EventEditor: React.FC<EventEditorProps> = ({ personId, eventId, onSave, on
     });
   };
   
+  // Handler for date range toggle
   const handleRangeToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { checked } = e.target;
     setFormData({
@@ -185,6 +230,7 @@ const EventEditor: React.FC<EventEditorProps> = ({ personId, eventId, onSave, on
     });
   };
   
+  // Form submission handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -192,11 +238,21 @@ const EventEditor: React.FC<EventEditorProps> = ({ personId, eventId, onSave, on
       setLoading(true);
       setError(null);
       
-      // Add the person ID to the form data
+      // Validate that at least one person is selected
+      if (formData.selectedPersonIds.length === 0) {
+        setError('Please select at least one person for this event');
+        setLoading(false);
+        return;
+      }
+      
+      // Prepare the event data with the persons array
       const eventData = {
         ...formData,
-        person: personId,
+        persons: formData.selectedPersonIds,
       };
+      
+      // Remove the selectedPersonIds field since it's not part of the model
+      delete eventData.selectedPersonIds;
       
       let response;
       
@@ -213,7 +269,10 @@ const EventEditor: React.FC<EventEditorProps> = ({ personId, eventId, onSave, on
       
       // Reset form after successful submit
       if (!eventId) {
-        setFormData(initialFormData);
+        setFormData({
+          ...initialFormData,
+          selectedPersonIds: personId ? [personId] : []
+        });
       }
       
       // Call onSave callback if provided
@@ -238,6 +297,15 @@ const EventEditor: React.FC<EventEditorProps> = ({ personId, eventId, onSave, on
     }
   };
   
+  // Helper function to get person name by ID
+  const getPersonName = (personId: string): string => {
+    const person = availablePeople.find(p => p._id === personId);
+    if (!person || !person.names || person.names.length === 0) {
+      return 'Unknown Person';
+    }
+    return `${person.names[0].given} ${person.names[0].surname}`;
+  };
+  
   return (
     <Paper elevation={3} sx={{ p: 4, mt: 2 }}>
       <Typography variant="h5" gutterBottom>
@@ -251,85 +319,108 @@ const EventEditor: React.FC<EventEditorProps> = ({ personId, eventId, onSave, on
         </Alert>
       )}
       
-      <form onSubmit={handleSubmit}>
-        <Grid container spacing={3}>
-          <Grid item xs={12} sm={6}>
-            <FormControl fullWidth>
-              <InputLabel id="event-type-label">Event Type</InputLabel>
-              <Select
-                labelId="event-type-label"
-                id="event-type"
-                name="type"
-                value={formData.type}
-                onChange={handleSelectChange}
-                label="Event Type"
-                required
-              >
-                {eventTypes.map((type) => (
-                  <MenuItem key={type} value={type}>
-                    {type}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <TextField
-              name="title"
-              label="Event Title"
-              fullWidth
-              value={formData.title}
-              onChange={handleInputChange}
-              required
-            />
-          </Grid>
-          
-          <Grid item xs={12}>
-            <TextField
-              name="description"
-              label="Description"
-              fullWidth
-              multiline
-              minRows={3}
-              value={formData.description}
-              onChange={handleInputChange}
-            />
-          </Grid>
-          
-          <Grid item xs={12}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.date.isRange}
-                  onChange={handleRangeToggle}
-                  color="primary"
-                />
-              }
-              label="Date Range"
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={formData.date.isRange ? 6 : 12}>
-            <DatePicker
-              label={formData.date.isRange ? "Start Date" : "Date"}
-              value={formData.date.start}
-              onChange={(date) => handleDateChange(date, "start")}
-              slotProps={{
-                textField: {
-                  fullWidth: true,
-                  variant: "outlined"
-                }
-              }}
-            />
-          </Grid>
-          
-          {formData.date.isRange && (
+      {loading && !eventId ? (
+        <Box display="flex" justifyContent="center" p={3}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <form onSubmit={handleSubmit}>
+          <Grid container spacing={3}>
+            {/* Multi-person selector - always show, but pre-select personId if provided */}
+            <Grid item xs={12}>
+              <FormControl fullWidth required error={formData.selectedPersonIds.length === 0 && !!error}>
+                <InputLabel id="person-select-label">Participants</InputLabel>
+                <Select
+                  labelId="person-select-label"
+                  id="person-select"
+                  multiple
+                  value={formData.selectedPersonIds}
+                  onChange={handlePersonSelectChange}
+                  input={<OutlinedInput label="Participants" />}
+                  renderValue={(selected) => (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {selected.map((value) => (
+                        <Chip key={value} label={getPersonName(value)} />
+                      ))}
+                    </Box>
+                  )}
+                >
+                  {availablePeople.map((person) => (
+                    <MenuItem key={person._id} value={person._id}>
+                      {person.names && person.names.length > 0
+                        ? `${person.names[0].given} ${person.names[0].surname}`
+                        : 'Unknown Name'}
+                    </MenuItem>
+                  ))}
+                </Select>
+                {formData.selectedPersonIds.length === 0 && !!error && (
+                  <FormHelperText>At least one person must be selected</FormHelperText>
+                )}
+              </FormControl>
+            </Grid>
+            
             <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel id="event-type-label">Event Type</InputLabel>
+                <Select
+                  labelId="event-type-label"
+                  id="event-type"
+                  name="type"
+                  value={formData.type}
+                  onChange={handleSelectChange}
+                  label="Event Type"
+                  required
+                >
+                  {eventTypes.map((type) => (
+                    <MenuItem key={type} value={type}>
+                      {type}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="title"
+                label="Event Title"
+                fullWidth
+                value={formData.title}
+                onChange={handleInputChange}
+                required
+              />
+            </Grid>
+            
+            <Grid item xs={12}>
+              <TextField
+                name="description"
+                label="Description"
+                fullWidth
+                multiline
+                minRows={3}
+                value={formData.description}
+                onChange={handleInputChange}
+              />
+            </Grid>
+            
+            <Grid item xs={12}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.date.isRange}
+                    onChange={handleRangeToggle}
+                    color="primary"
+                  />
+                }
+                label="Date Range"
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={formData.date.isRange ? 6 : 12}>
               <DatePicker
-                label="End Date"
-                value={formData.date.end}
-                onChange={(date) => handleDateChange(date, "end")}
+                label={formData.date.isRange ? "Start Date" : "Date"}
+                value={formData.date.start}
+                onChange={(date) => handleDateChange(date, "start")}
                 slotProps={{
                   textField: {
                     fullWidth: true,
@@ -338,75 +429,91 @@ const EventEditor: React.FC<EventEditorProps> = ({ personId, eventId, onSave, on
                 }}
               />
             </Grid>
-          )}
-          
-          <Grid item xs={12}>
-            <TextField
-              name="place"
-              label="Location"
-              fullWidth
-              value={formData.location.place}
-              onChange={handleLocationChange}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <TextField
-              name="latitude"
-              label="Latitude (optional)"
-              fullWidth
-              type="number"
-              inputProps={{ step: 'any' }}
-              value={formData.location.coordinates.latitude === null ? '' : formData.location.coordinates.latitude}
-              onChange={handleCoordinateChange}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <TextField
-              name="longitude"
-              label="Longitude (optional)"
-              fullWidth
-              type="number"
-              inputProps={{ step: 'any' }}
-              value={formData.location.coordinates.longitude === null ? '' : formData.location.coordinates.longitude}
-              onChange={handleCoordinateChange}
-            />
-          </Grid>
-          
-          <Grid item xs={12}>
-            <TextField
-              name="notes"
-              label="Notes"
-              fullWidth
-              multiline
-              minRows={3}
-              value={formData.notes}
-              onChange={handleInputChange}
-            />
-          </Grid>
-          
-          <Grid item xs={12}>
-            <Button
-              type="submit"
-              variant="contained"
-              color="primary"
-              disabled={loading}
-              sx={{ mr: 2 }}
-            >
-              {loading ? 'Saving...' : (eventId ? 'Update Event' : 'Save Event')}
-            </Button>
             
-            <Button
-              variant="outlined"
-              onClick={handleCancelClick}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
+            {formData.date.isRange && (
+              <Grid item xs={12} sm={6}>
+                <DatePicker
+                  label="End Date"
+                  value={formData.date.end}
+                  onChange={(date) => handleDateChange(date, "end")}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      variant: "outlined"
+                    }
+                  }}
+                />
+              </Grid>
+            )}
+            
+            <Grid item xs={12}>
+              <TextField
+                name="place"
+                label="Location"
+                fullWidth
+                value={formData.location.place}
+                onChange={handleLocationChange}
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="latitude"
+                label="Latitude (optional)"
+                fullWidth
+                type="number"
+                inputProps={{ step: 'any' }}
+                value={formData.location.coordinates.latitude === null ? '' : formData.location.coordinates.latitude}
+                onChange={handleCoordinateChange}
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="longitude"
+                label="Longitude (optional)"
+                fullWidth
+                type="number"
+                inputProps={{ step: 'any' }}
+                value={formData.location.coordinates.longitude === null ? '' : formData.location.coordinates.longitude}
+                onChange={handleCoordinateChange}
+              />
+            </Grid>
+            
+            <Grid item xs={12}>
+              <TextField
+                name="notes"
+                label="Notes"
+                fullWidth
+                multiline
+                minRows={3}
+                value={formData.notes}
+                onChange={handleInputChange}
+              />
+            </Grid>
+            
+            <Grid item xs={12}>
+              <Button
+                type="submit"
+                variant="contained"
+                color="primary"
+                disabled={loading}
+                sx={{ mr: 2 }}
+              >
+                {loading ? 'Saving...' : (eventId ? 'Update Event' : 'Save Event')}
+              </Button>
+              
+              <Button
+                variant="outlined"
+                onClick={handleCancelClick}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+            </Grid>
           </Grid>
-        </Grid>
-      </form>
+        </form>
+      )}
       
       <Snackbar 
         open={success} 
