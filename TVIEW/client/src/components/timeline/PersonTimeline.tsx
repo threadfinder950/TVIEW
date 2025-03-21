@@ -1,5 +1,6 @@
 // src/components/timeline/PersonTimeline.tsx
 import React, { useState, useEffect } from 'react';
+import { formatEventDate, isValidDate } from '@/utils/dateUtils';
 import {
   Paper,
   Typography,
@@ -81,8 +82,8 @@ const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName })
         ...event,
         date: {
           ...event.date,
-          start: event.date.start ? new Date(event.date.start) : undefined,
-          end: event.date.end ? new Date(event.date.end) : undefined,
+          start: event.date.start ? isValidDate(event.date.start) ? new Date(event.date.start) : null : null,
+          end: event.date.end ? isValidDate(event.date.end) ? new Date(event.date.end) : null : null,
         }
       }));
       
@@ -244,15 +245,12 @@ const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName })
           <Timeline position="alternate">
             {events.map((event) => (
               <TimelineItem key={event._id}>
+                
                 <TimelineOppositeContent sx={{ m: 'auto 0' }} color="text.secondary">
                   <Typography variant="body2">
-                    {formatEventDate(event)}
+                    {formatEventDate(event.date.start, event.date.end, event.date.isRange)}
                   </Typography>
-                  {event.location?.place && (
-                    <Typography variant="body2" color="text.secondary">
-                      {event.location.place}
-                    </Typography>
-                  )}
+                  {/* rest of the component */}
                 </TimelineOppositeContent>
                 
                 <TimelineSeparator>
