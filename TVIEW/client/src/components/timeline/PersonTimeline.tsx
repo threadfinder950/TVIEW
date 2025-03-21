@@ -1,6 +1,6 @@
 // src/components/timeline/PersonTimeline.tsx
 import React, { useState, useEffect } from 'react';
-import { formatEventDate, isValidDate } from '@/utils/dateUtils';
+import { formatEventDate, isValidDate } from '../../utils/dateUtils';
 import {
   Paper,
   Typography,
@@ -70,6 +70,7 @@ const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName })
   const [error, setError] = useState<string | null>(null);
   const [showAddEvent, setShowAddEvent] = useState<boolean>(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
+
   
   // Fetch events for the person
   const fetchEvents = async () => {
@@ -247,11 +248,15 @@ const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName })
               <TimelineItem key={event._id}>
                 
                 <TimelineOppositeContent sx={{ m: 'auto 0' }} color="text.secondary">
-                  <Typography variant="body2">
-                    {formatEventDate(event.date.start, event.date.end, event.date.isRange)}
-                  </Typography>
-                  {/* rest of the component */}
-                </TimelineOppositeContent>
+                    <Typography variant="body2">
+                      {formatEventDate(event)}  {/* Replace your local formatting call with the imported function */}
+                    </Typography>
+                    {event.location?.place && (
+                      <Typography variant="body2" color="text.secondary">
+                        {event.location.place}
+                      </Typography>
+                    )}
+                  </TimelineOppositeContent>
                 
                 <TimelineSeparator>
                   <TimelineDot sx={{ bgcolor: getEventColor(event.type) }}>

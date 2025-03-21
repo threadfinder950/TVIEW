@@ -3,6 +3,7 @@ import { logger } from '../utils/logger';
 import Person from '../models/Person';
 import Relationship from '../models/Relationship';
 import Event from '../models/Event';
+import { safeDate } from '../utils/dateUtils';
 
 interface ImportStats {
   individuals: number;
@@ -138,19 +139,33 @@ class GedcomService {
     return person;
   }
   
+
+private extractEventData(individual: any, eventType: string) {
+  const eventNode = individual.children?.find((node: any) => 
+    node.type === eventType
+  );
   
-  private extractEventData(individual: any, eventTag: string) {
-    const eventNode = individual.children?.find((node: any) => node.type === eventTag);
-    if (!eventNode) return {};
+  if (!eventNode) return {};
   
-    const dateNode = eventNode.children?.find((node: any) => node.type === 'DATE');
-    const placeNode = eventNode.children?.find((node: any) => node.type === 'PLAC');
+  const dateNode = eventNode.children?.find((node: any) => 
+    node.type === 'DATE'
+  );
   
-    return {
-      date: dateNode?.value ? new Date(dateNode.value) : null, // Ensure correct date parsing
-      place: placeNode?.value || "" // Extract the actual place string
-    };
-  }
+  const placeNode = eventNode.children?.find((node: any) => 
+    node.type === 'PLAC'
+  );
+  
+  const noteNode = eventNode.children?.find((node: any) => 
+    node.type === 'NOTE'
+  );
+  
+  return {
+    // Use safeDate to handle invalid dates
+    date: dateNode ? safeDate(dateNode.value) : null,
+    place: placeNode ? placeNode.value : '',
+    notes: noteNode ? noteNode.value : ''
+  };
+}
 
   /**
    * Creates Relationships from GEDCOM family data.

@@ -33,8 +33,17 @@ const nameSchema = new mongoose.Schema<IName>({
   toDate: Date
 });
 
+
 const vitalEventSchema = new mongoose.Schema<IVitalEvent>({
-  date: Date,
+  date: {
+    type: Date,
+    validate: {
+      validator: function(value: Date) {
+        return value === null || !isNaN(value.getTime());
+      },
+      message: props => `${props.value} is not a valid date!`
+    }
+  },
   place: String,
   notes: String
 });
