@@ -306,7 +306,7 @@ function App() {
                 <Route path="/people" element={<PeopleList />} />
                 <Route path="/people/:id" element={<PersonDetails />} />
                 <Route path="/events" element={<EventsPage />} />
-                <Route path="/events/edit/:id" element={<EventEditor />} />
+
                 <Route path="/export" element={<ExportData />} />
                 <Route path="/admin/database" element={<DatabaseManager />} />
                 <Route path="/settings" element={<SettingsPage />} />

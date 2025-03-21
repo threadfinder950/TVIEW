@@ -1,5 +1,6 @@
 // src/components/gedcom/GedcomImport.tsx
 import React, { useState } from 'react';
+import './GedcomImport.css';
 import { 
   Button, 
   Typography, 
@@ -99,13 +100,13 @@ const GedcomImport: React.FC = () => {
         <Divider sx={{ my: 2 }} />
         
         <Box mt={3}>
-          <input
-            id="gedcom-file-input"
-            type="file"
-            accept=".ged"
-            style={{ display: 'none' }}
-            onChange={handleFileChange}
-          />
+        <input
+  id="gedcom-file-input"
+  type="file"
+  accept=".ged"
+  className="hidden-file-input"
+  onChange={handleFileChange}
+/>
           <label htmlFor="gedcom-file-input">
             <Button
               variant="contained"
