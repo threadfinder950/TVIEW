@@ -9,22 +9,19 @@ import Event from '../models/Event';
  * @route   GET /api/events
  * @access  Public
  */
+// In src/controllers/eventController.ts - getAllEvents function
 export const getAllEvents = asyncHandler(async (req: Request, res: Response) => {
   const events = await Event.find()
-    .populate('persons', 'names')  // Populate persons with their names
+    .populate('persons', 'names gender')  // Add gender to the populated fields
     .sort('date.start');
   
   res.json(events);
 });
 
-/**
- * @desc    Get single event by ID
- * @route   GET /api/events/:id
- * @access  Public
- */
+// Also update getEventById function similarly
 export const getEventById = asyncHandler(async (req: Request, res: Response) => {
   const event = await Event.findById(req.params.id)
-    .populate('persons', 'names');  // Populate persons with their names
+    .populate('persons', 'names gender');
   
   if (!event) {
     throw new ErrorResponse('Event not found', 404);

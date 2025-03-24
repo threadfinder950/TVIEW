@@ -1,25 +1,23 @@
-// src/components/timeline/PersonTimeline.tsx
+// Enhanced PersonTimeline.tsx
 import React, { useState, useEffect } from 'react';
-import { formatDate, isValidDate } from '../../utils/dateUtils';
 import {
   Paper,
   Typography,
   Divider,
-  List,
-  ListItem,
-  ListItemText,
+  Button,
+  Box,
   Chip,
   Grid,
   IconButton,
-  Button,
-  Box,
-  useTheme,
-  CircularProgress,
-  Alert,
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogActions
+  Card,
+  CardContent,
+  Tooltip,
+  Avatar,
+  TextField,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Select
 } from '@mui/material';
 import Timeline from '@mui/lab/Timeline';
 import TimelineItem from '@mui/lab/TimelineItem';
@@ -30,7 +28,7 @@ import TimelineDot from '@mui/lab/TimelineDot';
 import TimelineOppositeContent from '@mui/lab/TimelineOppositeContent';
 import {
   Edit as EditIcon,
-  Delete as DeleteIcon,
+  Add as AddIcon,
   Work as WorkIcon,
   School as SchoolIcon,
   Home as HomeIcon,
@@ -39,57 +37,15 @@ import {
   FlightTakeoff as TravelIcon,
   EmojiEvents as AchievementIcon,
   Event as EventIcon,
-  Add as AddIcon
+  FilterList as FilterIcon,
+  Sort as SortIcon,
+  DateRange as DateRangeIcon,
+  LocationOn as LocationIcon
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import axios from 'axios';
 import EventEditor from '../forms/EventEditor';
 import { API } from '../../config/api';
-
-// Update the Event interface to include persons array
-interface Event {
-  _id: string;
-  type: string;
-  title: string;
-  description?: string;
-  persons: Array<{
-    _id: string;
-    names: Array<{
-      given: string;
-      surname: string;
-    }>;
-  }>;
-  date: {
-    start?: Date;
-    end?: Date;
-    isRange: boolean;
-  };
-  location?: {
-    place?: string;
-  };
-  notes?: string;
-}
-
-// Add a helper function to display participants
-const getParticipants = (event: Event, currentPersonId: string): string => {
-  if (!event.persons || !Array.isArray(event.persons) || event.persons.length <= 1) {
-    return '';
-  }
-  
-  // Filter out the current person if they're in the list
-  const otherPersons = event.persons.filter(p => p._id !== currentPersonId);
-  
-  if (otherPersons.length === 0) {
-    return '';
-  }
-  
-  return otherPersons.map(person => {
-    if (person.names && person.names.length > 0) {
-      return `${person.names[0].given} ${person.names[0].surname}`;
-    }
-    return 'Unknown Person';
-  }).join(', ');
-};
 
 interface PersonTimelineProps {
   personId: string;
@@ -97,53 +53,43 @@ interface PersonTimelineProps {
 }
 
 const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName }) => {
-  const theme = useTheme();
-  const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [showAddEvent, setShowAddEvent] = useState<boolean>(false);
-  const [editingEventId, setEditingEventId] = useState<string | null>(null);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState<boolean>(false);
-  const [eventToDelete, setEventToDelete] = useState<string | null>(null);
-  
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showAddEvent, setShowAddEvent] = useState(false);
+  const [editingEventId, setEditingEventId] = useState(null);
+  const [filterType, setFilterType] = useState('all');
+  const [sortOrder, setSortOrder] = useState('asc'); // 'asc' or 'desc'
+  const [showFilters, setShowFilters] = useState(false);
+  const [personDetails, setPersonDetails] = useState(null);
+
   // Fetch events for the person
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(API.persons.events(personId));
       
-      // Ensure we have the persons data and it's populated
-      if (response.data && Array.isArray(response.data)) {
-        // Convert date strings to Date objects and sort by start date
-        const eventsWithDates = response.data.map((event: any) => ({
-          ...event,
-          date: {
-            ...event.date,
-            start: event.date.start ? isValidDate(event.date.start) ? new Date(event.date.start) : null : null,
-            end: event.date.end ? isValidDate(event.date.end) ? new Date(event.date.end) : null : null,
-          }
-        }));
-        
-        // Sort events by date (earliest first)
-        const sortedEvents = eventsWithDates.sort((a: Event, b: Event) => {
-          const dateA = a.date.start ? a.date.start.getTime() : 0;
-          const dateB = b.date.start ? b.date.start.getTime() : 0;
-          return dateA - dateB;
-        });
-        
-        setEvents(sortedEvents);
-        setError(null);
-      } else {
-        throw new Error('Invalid event data received from server');
-      }
+      // Get person details
+      const personResponse = await axios.get(API.persons.getById(personId));
+      setPersonDetails(personResponse.data);
+      
+      // Get events
+      const eventsResponse = await axios.get(API.persons.events(personId));
+      
+      // Convert date strings to Date objects
+      const eventsWithDates = eventsResponse.data.map(event => ({
+        ...event,
+        date: {
+          ...event.date,
+          start: event.date?.start ? new Date(event.date.start) : null,
+          end: event.date?.end ? new Date(event.date.end) : null,
+        }
+      }));
+      
+      setEvents(eventsWithDates);
+      setError(null);
     } catch (err) {
-      let errorMessage = 'Failed to fetch events';
-      if (axios.isAxiosError(err) && err.response) {
-        errorMessage = err.response.data.message || errorMessage;
-      } else if (err instanceof Error) {
-        errorMessage = err.message;
-      }
-      setError(errorMessage);
+      setError('Failed to fetch events');
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -153,32 +99,16 @@ const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName })
     fetchEvents();
   }, [personId]);
   
-  const handleOpenDeleteConfirm = (eventId: string) => {
-    setEventToDelete(eventId);
-    setDeleteConfirmOpen(true);
-  };
-  
-  const handleCloseDeleteConfirm = () => {
-    setDeleteConfirmOpen(false);
-    setEventToDelete(null);
-  };
-  
-  const handleDeleteEvent = async () => {
-    if (!eventToDelete) return;
-    
-    try {
-      await axios.delete(API.events.delete(eventToDelete));
-      // Remove the deleted event from the state
-      setEvents(events.filter(event => event._id !== eventToDelete));
-      handleCloseDeleteConfirm();
-    } catch (err) {
-      let errorMessage = 'Failed to delete event';
-      if (axios.isAxiosError(err) && err.response) {
-        errorMessage = err.response.data.message || errorMessage;
-      } else if (err instanceof Error) {
-        errorMessage = err.message;
+  const handleDeleteEvent = async (eventId) => {
+    if (window.confirm('Are you sure you want to delete this event?')) {
+      try {
+        await axios.delete(API.events.delete(eventId));
+        // Remove the deleted event from the state
+        setEvents(events.filter(event => event._id !== eventId));
+      } catch (err) {
+        alert(`Error: Failed to delete event`);
+        console.error(err);
       }
-      alert(`Error: ${errorMessage}`);
     }
   };
   
@@ -190,7 +120,7 @@ const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName })
     setEditingEventId(null);
   };
   
-  const getEventIcon = (eventType: string) => {
+  const getEventIcon = (eventType) => {
     switch (eventType) {
       case 'Work':
         return <WorkIcon />;
@@ -211,44 +141,196 @@ const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName })
     }
   };
   
-  const getEventColor = (eventType: string) => {
+  const getEventColor = (eventType) => {
     switch (eventType) {
       case 'Work':
-        return theme.palette.primary.main;
+        return 'primary.main';
       case 'Education':
-        return theme.palette.secondary.main;
+        return 'secondary.main';
       case 'Residence':
-        return '#4caf50'; // green
+        return 'success.main';
       case 'Military':
-        return '#795548'; // brown
+        return 'warning.dark';
       case 'Medical':
-        return '#e91e63'; // pink
+        return 'error.main';
       case 'Travel':
-        return '#2196f3'; // blue
+        return 'info.main';
       case 'Achievement':
-        return '#ff9800'; // orange
+        return 'warning.main';
       default:
-        return '#9e9e9e'; // grey
+        return 'text.secondary';
     }
   };
   
-  const formatEventDateRange = (event: Event) => {
-    if (!event.date.start) return 'No date';
+  const formatEventDate = (event) => {
+    if (!event.date || !event.date.start) return 'No date';
+    
+    const startDate = event.date.start;
     
     if (event.date.isRange && event.date.end) {
-      return `${format(new Date(event.date.start), 'MMM d, yyyy')} - ${format(new Date(event.date.end), 'MMM d, yyyy')}`;
+      return `${format(startDate, 'MMM d, yyyy')} - ${format(event.date.end, 'MMM d, yyyy')}`;
     }
     
-    return format(new Date(event.date.start), 'MMM d, yyyy');
+    return format(startDate, 'MMM d, yyyy');
   };
   
+  // Get additional participants
+  const getParticipants = (event) => {
+    if (!event.persons || event.persons.length <= 1) {
+      return null;
+    }
+    
+    const otherPersons = event.persons.filter(p => p._id !== personId);
+    
+    if (otherPersons.length === 0) {
+      return null;
+    }
+    
+    return otherPersons.map(person => {
+      if (person.names && person.names.length > 0) {
+        return `${person.names[0].given} ${person.names[0].surname}`;
+      }
+      return 'Unknown Person';
+    }).join(', ');
+  };
+  
+  // Apply filters and sorting
+  const filteredAndSortedEvents = [...events]
+    .filter(event => {
+      if (filterType === 'all') return true;
+      return event.type === filterType;
+    })
+    .sort((a, b) => {
+      const dateA = a.date?.start ? a.date.start.getTime() : 0;
+      const dateB = b.date?.start ? b.date.start.getTime() : 0;
+      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+    });
+  
+  // Find birth and death events for life span display
+  const birthEvent = events.find(event => event.type === 'Birth' || (
+    event.title?.toLowerCase().includes('birth') && event.date?.start));
+  
+  const deathEvent = events.find(event => event.type === 'Death' || (
+    event.title?.toLowerCase().includes('death') && event.date?.start));
+  
+  // Calculate age or lifespan
+  const getLifespan = () => {
+    if (!birthEvent?.date?.start) return null;
+    
+    const birthDate = birthEvent.date.start;
+    
+    if (deathEvent?.date?.start) {
+      const deathDate = deathEvent.date.start;
+      const years = deathDate.getFullYear() - birthDate.getFullYear();
+      // Adjust for month and day
+      if (
+        deathDate.getMonth() < birthDate.getMonth() || 
+        (deathDate.getMonth() === birthDate.getMonth() && deathDate.getDate() < birthDate.getDate())
+      ) {
+        return `${years - 1} years`;
+      }
+      return `${years} years`;
+    }
+    
+    // Person is still alive or death date unknown
+    const now = new Date();
+    const years = now.getFullYear() - birthDate.getFullYear();
+    // Adjust for month and day
+    if (
+      now.getMonth() < birthDate.getMonth() || 
+      (now.getMonth() === birthDate.getMonth() && now.getDate() < birthDate.getDate())
+    ) {
+      return `${years - 1} years`;
+    }
+    return `${years} years`;
+  };
+
+  // Person summary display for the top of the timeline
+  const PersonSummary = () => {
+    if (!personDetails) return null;
+    
+    return (
+      <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <Box display="flex" alignItems="center" gap={2}>
+              <Avatar sx={{ width: 64, height: 64 }}>
+                <PersonIcon fontSize="large" />
+              </Avatar>
+              <Box>
+                <Typography variant="h4">
+                  {personName || 'Person Timeline'}
+                </Typography>
+                
+                {personDetails.gender && (
+                  <Chip 
+                    label={personDetails.gender === 'M' ? 'Male' : 
+                           personDetails.gender === 'F' ? 'Female' : 
+                           personDetails.gender === 'O' ? 'Other' : 'Unknown'} 
+                    color={personDetails.gender === 'M' ? 'primary' : 
+                           personDetails.gender === 'F' ? 'secondary' : 
+                           'default'}
+                    size="small"
+                    sx={{ mt: 1 }}
+                  />
+                )}
+              </Box>
+            </Box>
+          </Grid>
+          
+          <Grid item xs={12} md={6}>
+            <Box display="flex" flexDirection="column" gap={1}>
+              {personDetails.birth && (
+                <Box display="flex" alignItems="center" gap={1}>
+                  <BirthIcon fontSize="small" color="primary" />
+                  <Typography>
+                    <strong>Born:</strong> {
+                      personDetails.birth.date ? 
+                        format(new Date(personDetails.birth.date), 'MMMM d, yyyy') : 
+                        'Date unknown'
+                    }
+                    {personDetails.birth.place ? ` in ${personDetails.birth.place}` : ''}
+                  </Typography>
+                </Box>
+              )}
+              
+              {personDetails.death && (
+                <Box display="flex" alignItems="center" gap={1}>
+                  <DeathIcon fontSize="small" color="error" />
+                  <Typography>
+                    <strong>Died:</strong> {
+                      personDetails.death.date ? 
+                        format(new Date(personDetails.death.date), 'MMMM d, yyyy') : 
+                        'Date unknown'
+                    }
+                    {personDetails.death.place ? ` in ${personDetails.death.place}` : ''}
+                  </Typography>
+                </Box>
+              )}
+              
+              {getLifespan() && (
+                <Typography variant="subtitle1">
+                  <strong>Lifespan:</strong> {getLifespan()}
+                </Typography>
+              )}
+            </Box>
+          </Grid>
+        </Grid>
+      </Paper>
+    );
+  };
+
   return (
     <div>
-      <Paper elevation={3} sx={{ p: 3, mb: 2 }}>
+      {/* Person summary at the top */}
+      <PersonSummary />
+      
+      {/* Timeline controls */}
+      <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
         <Grid container justifyContent="space-between" alignItems="center">
           <Grid item>
             <Typography variant="h5">
-              {personName ? `${personName}'s Timeline` : 'Personal Timeline'}
+              Life Events
             </Typography>
           </Grid>
           <Grid item>
@@ -262,8 +344,41 @@ const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName })
             </Button>
           </Grid>
         </Grid>
+        
+        <Box mt={3} display="flex" justifyContent="flex-end">
+          <IconButton onClick={() => setShowFilters(!showFilters)}>
+            <FilterIcon />
+          </IconButton>
+          <IconButton onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}>
+            <SortIcon />
+          </IconButton>
+        </Box>
+        
+        {showFilters && (
+          <Box mt={2} p={2} bgcolor="background.paper" borderRadius={1}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Event Type</InputLabel>
+              <Select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                label="Event Type"
+              >
+                <MenuItem value="all">All Types</MenuItem>
+                <MenuItem value="Work">Work</MenuItem>
+                <MenuItem value="Education">Education</MenuItem>
+                <MenuItem value="Residence">Residence</MenuItem>
+                <MenuItem value="Military">Military</MenuItem>
+                <MenuItem value="Medical">Medical</MenuItem>
+                <MenuItem value="Travel">Travel</MenuItem>
+                <MenuItem value="Achievement">Achievement</MenuItem>
+                <MenuItem value="Custom">Custom</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+        )}
       </Paper>
       
+      {/* Event editor modal */}
       {showAddEvent && (
         <EventEditor 
           personId={personId} 
@@ -281,120 +396,119 @@ const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName })
         />
       )}
       
-      <Paper elevation={3} sx={{ p: 2 }}>
-        {loading ? (
-          <Box display="flex" justifyContent="center" padding={3}>
-            <CircularProgress />
-          </Box>
-        ) : error ? (
-          <Alert severity="error">{error}</Alert>
-        ) : events.length === 0 ? (
-          <Typography variant="body1" align="center" sx={{ py: 4 }}>
-            No events found. Add some events to build the timeline.
+      {/* Timeline display */}
+      {loading ? (
+        <Typography>Loading timeline...</Typography>
+      ) : error ? (
+        <Typography color="error">{error}</Typography>
+      ) : filteredAndSortedEvents.length === 0 ? (
+        <Paper elevation={2} sx={{ p: 4, textAlign: 'center' }}>
+          <Typography variant="h6" gutterBottom>No Events Found</Typography>
+          <Typography>
+            This person doesn't have any recorded events
+            {filterType !== 'all' ? ` of type "${filterType}"` : ''}.
           </Typography>
-        ) : (
+          <Button 
+            variant="contained" 
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={() => setShowAddEvent(true)}
+            sx={{ mt: 2 }}
+          >
+            Add First Event
+          </Button>
+        </Paper>
+      ) : (
+        <Paper elevation={2} sx={{ p: 2 }}>
           <Timeline position="alternate">
-            {events.map((event) => (
+            {filteredAndSortedEvents.map((event) => (
               <TimelineItem key={event._id}>
                 <TimelineOppositeContent sx={{ m: 'auto 0' }} color="text.secondary">
-                  <Typography variant="body2">
-                    {formatEventDateRange(event)}
+                  <Typography variant="body2" fontWeight="bold">
+                    {formatEventDate(event)}
                   </Typography>
                   {event.location?.place && (
-                    <Typography variant="body2" color="text.secondary">
-                      {event.location.place}
-                    </Typography>
+                    <Box display="flex" alignItems="center" gap={0.5}>
+                      <LocationIcon fontSize="small" />
+                      <Typography variant="body2" color="text.secondary">
+                        {event.location.place}
+                      </Typography>
+                    </Box>
                   )}
                 </TimelineOppositeContent>
                 
                 <TimelineSeparator>
-                  <TimelineDot sx={{ bgcolor: getEventColor(event.type) }}>
-                    {getEventIcon(event.type)}
-                  </TimelineDot>
+                  <Tooltip title={event.type}>
+                    <TimelineDot sx={{ bgcolor: getEventColor(event.type) }}>
+                      {getEventIcon(event.type)}
+                    </TimelineDot>
+                  </Tooltip>
                   <TimelineConnector />
                 </TimelineSeparator>
                 
                 <TimelineContent sx={{ py: 2 }}>
-                  <Paper elevation={3} sx={{ p: 2, mb: 2 }}>
-                    <Grid container justifyContent="space-between" alignItems="flex-start">
-                      <Grid item xs>
-                        <Typography variant="h6" component="h3">
-                          {event.title}
-                        </Typography>
-                        <Chip
-                          label={event.type}
-                          size="small"
-                          sx={{ 
-                            bgcolor: getEventColor(event.type),
-                            color: 'white',
-                            mb: 1
-                          }}
-                        />
+                  <Card 
+                    elevation={3} 
+                    sx={{ 
+                      transition: 'transform 0.2s, box-shadow 0.2s',
+                      '&:hover': {
+                        transform: 'translateY(-3px)',
+                        boxShadow: 6
+                      }
+                    }}
+                  >
+                    <CardContent>
+                      <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                        <Box width="100%">
+                          <Box display="flex" alignItems="center" gap={1} mb={1}>
+                            <Typography variant="h6">{event.title}</Typography>
+                            <Chip
+                              label={event.type}
+                              size="small"
+                              sx={{ 
+                                bgcolor: getEventColor(event.type),
+                                color: 'white'
+                              }}
+                            />
+                          </Box>
+                          
+                          {event.description && (
+                            <Typography variant="body2" paragraph>
+                              {event.description}
+                            </Typography>
+                          )}
+                          
+                          {getParticipants(event) && (
+                            <Typography variant="body2" sx={{ mb: 1 }}>
+                              <strong>Also involving:</strong> {getParticipants(event)}
+                            </Typography>
+                          )}
+                          
+                          {event.notes && (
+                            <Typography variant="body2" color="text.secondary">
+                              <strong>Notes:</strong> {event.notes}
+                            </Typography>
+                          )}
+                        </Box>
                         
-                        {event.description && (
-                          <Typography variant="body2" paragraph>
-                            {event.description}
-                          </Typography>
-                        )}
-                        
-                        {/* Display other participants */}
-                        {getParticipants(event, personId) && (
-                          <Typography variant="body2" sx={{ mb: 1 }}>
-                            <strong>Also involving:</strong> {getParticipants(event, personId)}
-                          </Typography>
-                        )}
-                        
-                        {event.notes && (
-                          <Typography variant="body2" color="text.secondary">
-                            <strong>Notes:</strong> {event.notes}
-                          </Typography>
-                        )}
-                      </Grid>
-                      
-                      <Grid item>
-                        <Box display="flex">
-                          <IconButton
-                            size="small"
-                            color="primary"
+                        <Box>
+                          <IconButton 
+                            size="small" 
                             onClick={() => setEditingEventId(event._id)}
-                            sx={{ mr: 0.5 }}
+                            color="primary"
                           >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() => handleOpenDeleteConfirm(event._id)}
-                          >
-                            <DeleteIcon fontSize="small" />
+                            <EditIcon />
                           </IconButton>
                         </Box>
-                      </Grid>
-                    </Grid>
-                  </Paper>
+                      </Box>
+                    </CardContent>
+                  </Card>
                 </TimelineContent>
               </TimelineItem>
             ))}
           </Timeline>
-        )}
-      </Paper>
-      
-      {/* Delete confirmation dialog */}
-      <Dialog
-        open={deleteConfirmOpen}
-        onClose={handleCloseDeleteConfirm}
-      >
-        <DialogTitle>Delete Event</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Are you sure you want to delete this event? This action cannot be undone.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDeleteConfirm}>Cancel</Button>
-          <Button color="error" onClick={handleDeleteEvent}>Delete</Button>
-        </DialogActions>
-      </Dialog>
+        </Paper>
+      )}
     </div>
   );
 };

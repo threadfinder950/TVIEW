@@ -97,70 +97,60 @@ const EventEditor: React.FC<EventEditorProps> = ({ personId, eventId, onSave, on
   
   // If eventId is provided, fetch the event data
   // If no personId is provided or if we're editing, fetch the list of people
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
+ // In src/components/forms/EventEditor.tsx
+useEffect(() => {
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      
+      // Always fetch available people for multi-select
+      const peopleResponse = await axios.get(API.persons.getAll);
+      setAvailablePeople(peopleResponse.data);
+      
+      // Fetch event data if editing an existing event
+      if (eventId) {
+        const response = await axios.get(API.events.getById(eventId));
         
-        // Always fetch available people for multi-select
-        const peopleResponse = await axios.get(API.persons.getAll);
-        setAvailablePeople(peopleResponse.data);
-        
-        // Fetch event data if editing an existing event
-        if (eventId) {
-          const response = await axios.get(API.events.getById(eventId));
-          
-          // Convert string dates to Date objects if they're valid
-          const eventData = {
-            ...response.data,
-            date: {
-              ...response.data.date,
-              start: response.data.date.start && isValidDate(response.data.date.start) ? 
-                new Date(response.data.date.start) : null,
-              end: response.data.date.end && isValidDate(response.data.date.end) ? 
-                new Date(response.data.date.end) : null,
-            }
-          };
-          
-          // Handle the conversion of persons field to selectedPersonIds
-          let personsArray: string[] = [];
-          
-          if (Array.isArray(response.data.persons) && response.data.persons.length > 0) {
-            personsArray = response.data.persons.map((p: any) => {
-              return typeof p === 'object' && p._id ? p._id : 
-                     typeof p === 'string' ? p : '';
-            }).filter(Boolean);
-          } else if (response.data.person) {
-            // Handle legacy data with single person
-            const personId = typeof response.data.person === 'object' ? 
-              response.data.person._id : response.data.person;
-            
-            if (personId) {
-              personsArray = [personId];
-            }
+        // Convert string dates to Date objects if they're valid
+        const eventData = {
+          ...response.data,
+          date: {
+            ...response.data.date,
+            start: response.data.date.start && isValidDate(response.data.date.start) ? 
+              new Date(response.data.date.start) : null,
+            end: response.data.date.end && isValidDate(response.data.date.end) ? 
+              new Date(response.data.date.end) : null,
           }
-          
-          setFormData({
-            ...eventData,
-            selectedPersonIds: personsArray
-          });
-        }
+        };
         
-        setLoading(false);
-      } catch (err) {
-        let errorMessage = 'Failed to fetch data';
-        if (axios.isAxiosError(err) && err.response) {
-          errorMessage = err.response.data.message || errorMessage;
-        } else if (err instanceof Error) {
-          errorMessage = err.message;
-        }
-        setError(errorMessage);
-        setLoading(false);
+        // Handle the conversion of persons field
+        const personsArray = Array.isArray(response.data.persons) 
+          ? response.data.persons.map((p) => typeof p === 'object' ? p._id : p)
+          : response.data.person  // Handle legacy data with single person
+            ? [response.data.person]
+            : [];
+        
+        setFormData({
+          ...eventData,
+          selectedPersonIds: personsArray
+        });
       }
-    };
-    
-    loadData();
-  }, [eventId, personId]);
+      
+      setLoading(false);
+    } catch (err) {
+      let errorMessage = 'Failed to fetch data';
+      if (axios.isAxiosError(err) && err.response) {
+        errorMessage = err.response.data.message || errorMessage;
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      setError(errorMessage);
+      setLoading(false);
+    }
+  };
+  
+  loadData();
+}, [eventId, personId]);
   
   // Handler for text input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
