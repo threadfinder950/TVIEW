@@ -476,6 +476,11 @@ class GedcomService {
   private async createRelationshipsFromFamily(family: any, individualMap: Map<string, string>) {
     const familyId = family.data?.xref_id || 'Unknown';
     logger.debug(`Processing family: ${familyId}`);
+    logger.debug(`[FAMILY] Processing ${familyId}`);
+    logger.debug(`[FAMILY] Children raw: ${JSON.stringify(family.children?.filter((c: { type: string }) => c.type === 'CHIL'), null, 2)}`);
+    logger.debug(`[FAMILY] HUSB: ${JSON.stringify(family.children?.find((c: { type: string }) => c.type ===  'HUSB'), null, 2)}`);
+    logger.debug(`[FAMILY] WIFE: ${JSON.stringify(family.children?.find((c: { type: string }) => c.type ===  'WIFE'), null, 2)}`);
+
 
     const relationships = [];
 
@@ -492,17 +497,41 @@ class GedcomService {
     // Create marriage/spouse relationship if both husband and wife exist
     if (husbandId && wifeId) {
       try {
-        // Get marriage date if available
         const marrNode = family.children?.find((node: any) => node.type === 'MARR');
         let marriageDate = null;
-        
+    
+        // Extract marriage date before using it
         if (marrNode) {
           const dateNode = marrNode.children?.find((node: any) => node.type === 'DATE');
           if (dateNode && dateNode.value) {
             marriageDate = safeDate(dateNode.value);
           }
         }
-        
+    
+        // Create marriage event if MARR node exists
+        if (marrNode) {
+          const placeNode = marrNode.children?.find((node: any) => node.type === 'PLAC');
+          const notes = ''; // Optionally extract more
+    
+          const eventData = {
+            type: 'Marriage',
+            title: 'Marriage',
+            description: '',
+            date: {
+              start: marriageDate
+            },
+            location: {
+              place: placeNode?.value || ''
+            },
+            notes,
+            persons: [husbandId, wifeId]
+          };
+    
+          const event = new Event(eventData);
+          await event.save();
+          logger.debug(`Created marriage event between ${husbandId} and ${wifeId}`);
+        }
+    
         // Create the relationship
         const spouseRelationship = new Relationship({
           type: 'Spouse',
@@ -510,29 +539,30 @@ class GedcomService {
           date: marriageDate ? { start: marriageDate } : undefined,
           notes: ''
         });
-        
+    
         await spouseRelationship.save();
         logger.debug(`Created spouse relationship between ${husbandId} and ${wifeId}`);
-        
       } catch (error) {
-       
         const err = error as Error;
         logger.warn(`Failed to create spouse relationship: ${err.message}`);
       }
     }
-
+    
     // Process all children
     const childNodes = family.children?.filter((node: any) => node.type === 'CHIL') || [];
     
     for (const childNode of childNodes) {
       try {
-        const childRef = childNode.data?.value || childNode.value || '';
+        const rawChildRef = childNode.data?.value || childNode.value || '';
+        const childRef = rawChildRef.trim(); // remove leading/trailing whitespace
+        
         const childId = individualMap.get(childRef);
         
         if (!childId) {
-          logger.warn(`Child reference ${childRef} not found in individual map`);
+          logger.warn(`Child reference "${childRef}" not found in individual map (from family ${familyId})`);
           continue;
         }
+        
         
         // Create parent-child relationships
         if (husbandId) {
