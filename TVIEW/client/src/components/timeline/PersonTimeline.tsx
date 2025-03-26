@@ -1,9 +1,8 @@
-// Enhanced PersonTimeline.tsx
+// Enhanced PersonTimeline.tsx with TypeScript fixes
 import React, { useState, useEffect } from 'react';
 import {
   Paper,
   Typography,
-  Divider,
   Button,
   Box,
   Chip,
@@ -13,11 +12,11 @@ import {
   CardContent,
   Tooltip,
   Avatar,
-  TextField,
-  MenuItem,
   FormControl,
   InputLabel,
-  Select
+  Select,
+  MenuItem,
+  Divider
 } from '@mui/material';
 import Timeline from '@mui/lab/Timeline';
 import TimelineItem from '@mui/lab/TimelineItem';
@@ -39,32 +38,89 @@ import {
   Event as EventIcon,
   FilterList as FilterIcon,
   Sort as SortIcon,
-  DateRange as DateRangeIcon,
-  LocationOn as LocationIcon
+  LocationOn as LocationIcon,
+  Person as PersonIcon,
+  Cake as BirthIcon,
+  SentimentVeryDissatisfied as DeathIcon
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import axios from 'axios';
 import EventEditor from '../forms/EventEditor';
 import { API } from '../../config/api';
 
+// Define interfaces for the component props and event data
 interface PersonTimelineProps {
   personId: string;
   personName?: string;
 }
 
+interface EventDate {
+  start?: Date | string | null;
+  end?: Date | string | null;
+  isRange: boolean;
+}
+
+interface EventLocation {
+  place?: string;
+  coordinates?: {
+    latitude?: number;
+    longitude?: number;
+  };
+}
+
+interface PersonName {
+  given: string;
+  surname: string;
+  fromDate?: Date | string;
+  toDate?: Date | string;
+}
+
+interface Person {
+  _id: string;
+  names: PersonName[];
+  gender?: 'M' | 'F' | 'O' | 'U';
+}
+
+interface Event {
+  _id: string;
+  type: string;
+  title: string;
+  description?: string;
+  date: EventDate;
+  location?: EventLocation;
+  notes?: string;
+  persons: Person[];
+}
+
+interface PersonDetails {
+  _id: string;
+  names: PersonName[];
+  gender?: 'M' | 'F' | 'O' | 'U';
+  birth?: {
+    date?: Date | string;
+    place?: string;
+    notes?: string;
+  };
+  death?: {
+    date?: Date | string;
+    place?: string;
+    notes?: string;
+  };
+}
+
 const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName }) => {
-  const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [showAddEvent, setShowAddEvent] = useState(false);
-  const [editingEventId, setEditingEventId] = useState(null);
-  const [filterType, setFilterType] = useState('all');
-  const [sortOrder, setSortOrder] = useState('asc'); // 'asc' or 'desc'
-  const [showFilters, setShowFilters] = useState(false);
-  const [personDetails, setPersonDetails] = useState(null);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showAddEvent, setShowAddEvent] = useState<boolean>(false);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  const [filterType, setFilterType] = useState<string>('all');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [showFilters, setShowFilters] = useState<boolean>(false);
+  const [personDetails, setPersonDetails] = useState<PersonDetails | null>(null);
 
   // Fetch events for the person
-  const fetchEvents = async () => {
+  const fetchEvents = async (): Promise<void> => {
     try {
       setLoading(true);
       
@@ -76,7 +132,7 @@ const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName })
       const eventsResponse = await axios.get(API.persons.events(personId));
       
       // Convert date strings to Date objects
-      const eventsWithDates = eventsResponse.data.map(event => ({
+      const eventsWithDates = eventsResponse.data.map((event: any) => ({
         ...event,
         date: {
           ...event.date,
@@ -88,7 +144,7 @@ const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName })
       setEvents(eventsWithDates);
       setError(null);
     } catch (err) {
-      setError('Failed to fetch events');
+      setError('Failed to load events');
       console.error(err);
     } finally {
       setLoading(false);
@@ -99,7 +155,7 @@ const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName })
     fetchEvents();
   }, [personId]);
   
-  const handleDeleteEvent = async (eventId) => {
+  const handleDeleteEvent = async (eventId: string): Promise<void> => {
     if (window.confirm('Are you sure you want to delete this event?')) {
       try {
         await axios.delete(API.events.delete(eventId));
@@ -112,7 +168,7 @@ const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName })
     }
   };
   
-  const handleEventSaved = () => {
+  const handleEventSaved = (): void => {
     // Reload events after saving
     fetchEvents();
     // Close editor
@@ -120,7 +176,7 @@ const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName })
     setEditingEventId(null);
   };
   
-  const getEventIcon = (eventType) => {
+  const getEventIcon = (eventType: string): React.ReactNode => {
     switch (eventType) {
       case 'Work':
         return <WorkIcon />;
@@ -141,7 +197,7 @@ const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName })
     }
   };
   
-  const getEventColor = (eventType) => {
+  const getEventColor = (eventType: string): string => {
     switch (eventType) {
       case 'Work':
         return 'primary.main';
@@ -162,20 +218,21 @@ const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName })
     }
   };
   
-  const formatEventDate = (event) => {
+  const formatEventDate = (event: Event): string => {
     if (!event.date || !event.date.start) return 'No date';
     
-    const startDate = event.date.start;
+    const startDate = new Date(event.date.start);
     
     if (event.date.isRange && event.date.end) {
-      return `${format(startDate, 'MMM d, yyyy')} - ${format(event.date.end, 'MMM d, yyyy')}`;
+      const endDate = new Date(event.date.end);
+      return `${format(startDate, 'MMM d, yyyy')} - ${format(endDate, 'MMM d, yyyy')}`;
     }
     
     return format(startDate, 'MMM d, yyyy');
   };
   
   // Get additional participants
-  const getParticipants = (event) => {
+  const getParticipants = (event: Event): string | null => {
     if (!event.persons || event.persons.length <= 1) {
       return null;
     }
@@ -201,8 +258,8 @@ const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName })
       return event.type === filterType;
     })
     .sort((a, b) => {
-      const dateA = a.date?.start ? a.date.start.getTime() : 0;
-      const dateB = b.date?.start ? b.date.start.getTime() : 0;
+      const dateA = a.date?.start ? new Date(a.date.start).getTime() : 0;
+      const dateB = b.date?.start ? new Date(b.date.start).getTime() : 0;
       return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
     });
   
@@ -214,13 +271,13 @@ const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName })
     event.title?.toLowerCase().includes('death') && event.date?.start));
   
   // Calculate age or lifespan
-  const getLifespan = () => {
+  const getLifespan = (): string | null => {
     if (!birthEvent?.date?.start) return null;
     
-    const birthDate = birthEvent.date.start;
+    const birthDate = new Date(birthEvent.date.start);
     
     if (deathEvent?.date?.start) {
-      const deathDate = deathEvent.date.start;
+      const deathDate = new Date(deathEvent.date.start);
       const years = deathDate.getFullYear() - birthDate.getFullYear();
       // Adjust for month and day
       if (
@@ -245,80 +302,80 @@ const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName })
     return `${years} years`;
   };
 
-  // Person summary display for the top of the timeline
-  const PersonSummary = () => {
-    if (!personDetails) return null;
-    
-    return (
-      <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
-            <Box display="flex" alignItems="center" gap={2}>
-              <Avatar sx={{ width: 64, height: 64 }}>
-                <PersonIcon fontSize="large" />
-              </Avatar>
-              <Box>
-                <Typography variant="h4">
-                  {personName || 'Person Timeline'}
-                </Typography>
-                
-                {personDetails.gender && (
-                  <Chip 
-                    label={personDetails.gender === 'M' ? 'Male' : 
-                           personDetails.gender === 'F' ? 'Female' : 
-                           personDetails.gender === 'O' ? 'Other' : 'Unknown'} 
-                    color={personDetails.gender === 'M' ? 'primary' : 
-                           personDetails.gender === 'F' ? 'secondary' : 
-                           'default'}
-                    size="small"
-                    sx={{ mt: 1 }}
-                  />
-                )}
-              </Box>
-            </Box>
-          </Grid>
-          
-          <Grid item xs={12} md={6}>
-            <Box display="flex" flexDirection="column" gap={1}>
-              {personDetails.birth && (
-                <Box display="flex" alignItems="center" gap={1}>
-                  <BirthIcon fontSize="small" color="primary" />
-                  <Typography>
-                    <strong>Born:</strong> {
-                      personDetails.birth.date ? 
-                        format(new Date(personDetails.birth.date), 'MMMM d, yyyy') : 
-                        'Date unknown'
-                    }
-                    {personDetails.birth.place ? ` in ${personDetails.birth.place}` : ''}
-                  </Typography>
-                </Box>
-              )}
+// Person summary display for the top of the timeline
+const PersonSummary = (): React.ReactNode => {
+  if (!personDetails) return null;
+  
+  return (
+    <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={6}>
+          <Box display="flex" alignItems="center" gap={2}>
+            <Avatar sx={{ width: 64, height: 64 }}>
+              <PersonIcon fontSize="large" />
+            </Avatar>
+            <Box>
+              <Typography variant="h4">
+                {personName || 'Person Timeline'}
+              </Typography>
               
-              {personDetails.death && (
-                <Box display="flex" alignItems="center" gap={1}>
-                  <DeathIcon fontSize="small" color="error" />
-                  <Typography>
-                    <strong>Died:</strong> {
-                      personDetails.death.date ? 
-                        format(new Date(personDetails.death.date), 'MMMM d, yyyy') : 
-                        'Date unknown'
-                    }
-                    {personDetails.death.place ? ` in ${personDetails.death.place}` : ''}
-                  </Typography>
-                </Box>
-              )}
-              
-              {getLifespan() && (
-                <Typography variant="subtitle1">
-                  <strong>Lifespan:</strong> {getLifespan()}
-                </Typography>
+              {personDetails.gender && (
+                <Chip 
+                  label={personDetails.gender === 'M' ? 'Male' : 
+                         personDetails.gender === 'F' ? 'Female' : 
+                         personDetails.gender === 'O' ? 'Other' : 'Unknown'} 
+                  color={personDetails.gender === 'M' ? 'primary' : 
+                         personDetails.gender === 'F' ? 'secondary' : 
+                         'default'}
+                  size="small"
+                  sx={{ mt: 1 }}
+                />
               )}
             </Box>
-          </Grid>
+          </Box>
         </Grid>
-      </Paper>
-    );
-  };
+        
+        <Grid item xs={12} md={6}>
+          <Box display="flex" flexDirection="column" gap={1}>
+            {personDetails.birth && (
+              <Box display="flex" alignItems="center" gap={1}>
+                <BirthIcon fontSize="small" color="primary" />
+                <Typography>
+                  <strong>Born:</strong> {
+                    personDetails.birth.date ? 
+                      format(new Date(personDetails.birth.date), 'MMMM d, yyyy') : 
+                      'Date unknown'
+                  }
+                  {personDetails.birth.place ? ` in ${personDetails.birth.place}` : ''}
+                </Typography>
+              </Box>
+            )}
+            
+            {personDetails.death && (
+              <Box display="flex" alignItems="center" gap={1}>
+                <DeathIcon fontSize="small" color="error" />
+                <Typography>
+                  <strong>Died:</strong> {
+                    personDetails.death.date ? 
+                      format(new Date(personDetails.death.date), 'MMMM d, yyyy') : 
+                      'Date unknown'
+                  }
+                  {personDetails.death.place ? ` in ${personDetails.death.place}` : ''}
+                </Typography>
+              </Box>
+            )}
+            
+            {getLifespan() && (
+              <Typography variant="subtitle1">
+                <strong>Lifespan:</strong> {getLifespan()}
+              </Typography>
+            )}
+          </Box>
+        </Grid>
+      </Grid>
+    </Paper>
+  );
+};
 
   return (
     <div>

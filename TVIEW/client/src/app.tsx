@@ -39,6 +39,7 @@ import axios from 'axios';
 
 import GedcomImport from './components/gedcom/GedcomImport';
 import PersonTimeline from './components/timeline/PersonTimeline';
+import PeopleList from './components/people/PeopleList'; // Import the new PeopleList component
 import EventsPage from './components/events/EventsPage';
 import ExportData from './components/export/ExportData';
 import { API } from './config/api';
@@ -126,125 +127,6 @@ const Dashboard = () => {
   );
 };
 
-// People List Component
-// People List Component - Enhanced version
-const PeopleList = () => {
-  const [people, setPeople] = useState<any[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  
-  useEffect(() => {
-    const fetchPeople = async () => {
-      try {
-        const response = await axios.get(API.persons.getAll);
-        setPeople(response.data);
-      } catch (error) {
-        console.error('Error fetching people:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchPeople();
-  }, []);
-  
-  if (loading) return <CircularProgress />;
-  
-  return (
-    <div>
-      <Typography variant="h4" gutterBottom>
-        People
-      </Typography>
-      
-      {people.length === 0 ? (
-        <Typography>
-          No people found. Try importing a GEDCOM file first.
-        </Typography>
-      ) : (
-        <List>
-          {people.map((person) => {
-            const name = person.names && person.names.length > 0
-              ? `${person.names[0].given} ${person.names[0].surname}`
-              : 'Unknown Name';
-              
-            const gender = person.gender ? 
-              person.gender === 'M' ? 'Male' : 
-              person.gender === 'F' ? 'Female' : 
-              person.gender === 'O' ? 'Other' : 'Unknown' : 'Unknown';
-            
-            const birthInfo = person.birth ? 
-              `${person.birth.date ? new Date(person.birth.date).toLocaleDateString() : 'Unknown date'}${person.birth.place ? ` at ${person.birth.place}` : ''}` : 
-              'Birth information unknown';
-            
-            const deathInfo = person.death && (person.death.date || person.death.place) ? 
-              `${person.death.date ? new Date(person.death.date).toLocaleDateString() : 'Unknown date'}${person.death.place ? ` at ${person.death.place}` : ''}` : 
-              null;
-            
-            return (
-              <ListItem 
-                component={Link} 
-                to={`/people/${person._id}`} 
-                key={person._id}
-                disablePadding
-                sx={{ 
-                  mb: 2, 
-                  border: '1px solid rgba(0,0,0,0.12)', 
-                  borderRadius: 1 
-                }}
-              >
-                <ListItemButton>
-                  <Box sx={{ width: '100%', p: 1 }}>
-                    <Typography variant="h6">{name}</Typography>
-                    <Box display="flex" flexDirection="row" gap={2} mt={1}>
-                      <Chip 
-                        label={gender} 
-                        size="small" 
-                        color={
-                          person.gender === 'M' ? 'primary' : 
-                          person.gender === 'F' ? 'secondary' : 
-                          'default'
-                        }
-                      />
-                      {person.sourceId && 
-                        <Chip 
-                          label={`ID: ${person.sourceId}`} 
-                          size="small" 
-                          variant="outlined" 
-                        />
-                      }
-                    </Box>
-                    <Typography variant="body2" sx={{ mt: 1 }}>
-                      <strong>Born:</strong> {birthInfo}
-                    </Typography>
-                    {deathInfo && (
-                      <Typography variant="body2">
-                        <strong>Died:</strong> {deathInfo}
-                      </Typography>
-                    )}
-                    {person.notes && (
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          mt: 1, 
-                          color: 'text.secondary',
-                          maxHeight: '3em',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis'
-                        }}
-                      >
-                        <strong>Notes:</strong> {person.notes}
-                      </Typography>
-                    )}
-                  </Box>
-                </ListItemButton>
-              </ListItem>
-            );
-          })}
-        </List>
-      )}
-    </div>
-  );
-};
-
 // Settings Placeholder
 const SettingsPage = () => {
   return (
@@ -324,26 +206,14 @@ function App() {
                   <ListItemText primary="Settings" />
                 </ListItemButton>
               </ListItem>
+              
+              <ListItem component={Link} to="/admin/database" disablePadding>
+                <ListItemButton>
+                  <ListItemIcon><SettingsIcon /></ListItemIcon>
+                  <ListItemText primary="Database Management" />
+                </ListItemButton>
+              </ListItem>
             </List>
-
-            <Divider />
-            
-<List>
-  <ListItem component={Link} to="/settings" disablePadding>
-    <ListItemButton>
-      <ListItemIcon><SettingsIcon /></ListItemIcon>
-      <ListItemText primary="Settings" />
-    </ListItemButton>
-  </ListItem>
-  
-  {/* Add this new item */}
-  <ListItem component={Link} to="/admin/database" disablePadding>
-    <ListItemButton>
-      <ListItemIcon><SettingsIcon /></ListItemIcon>
-      <ListItemText primary="Database Management" />
-    </ListItemButton>
-  </ListItem>
-</List>
           </Drawer>
           
           <Box
@@ -361,7 +231,6 @@ function App() {
                 <Route path="/people" element={<PeopleList />} />
                 <Route path="/people/:id" element={<PersonDetails />} />
                 <Route path="/events" element={<EventsPage />} />
-
                 <Route path="/export" element={<ExportData />} />
                 <Route path="/admin/database" element={<DatabaseManager />} />
                 <Route path="/settings" element={<SettingsPage />} />

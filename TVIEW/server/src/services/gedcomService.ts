@@ -16,7 +16,6 @@ interface ImportStats {
   errors: string[];
   warnings?: string[]; // For non-critical issues like missing family references
 }
-
 class GedcomService {
   /**
    * Parses a GEDCOM file and returns structured data.
@@ -48,8 +47,9 @@ class GedcomService {
       logger.info(`Parsed ${gedcomRecords.length} total records from GEDCOM file`);
       return gedcomRecords;
     } catch (error) {
-      logger.error(`Error parsing GEDCOM file: ${error.message}`, { stack: error.stack });
-      throw new Error(`Failed to parse GEDCOM file: ${error.message}`);
+      const err = error as Error;
+      logger.error(`Error parsing GEDCOM file: ${err.message}`, { stack: err.stack });
+      throw new Error(`Failed to parse GEDCOM file: ${err.message}`);
     }
   }
   
@@ -104,7 +104,8 @@ class GedcomService {
           const additionalEvents = await this.createEventsFromGedcom(individual, person._id.toString());
           stats.events += additionalEvents;
         } catch (error) {
-          stats.errors.push(`Error importing individual: ${error.message}`);
+          const err = error as Error;
+          stats.errors.push(`Error importing individual: ${err.message}`);
         }
       }
   
@@ -122,7 +123,8 @@ class GedcomService {
           await this.createRelationshipsFromFamily(family, individualMap);
           stats.families++;
         } catch (error) {
-          stats.errors.push(`Error importing family: ${error.message}`);
+          const err = error as Error;
+          stats.errors.push(`Error importing family: ${err.message}`);
         }
       }
       
@@ -137,8 +139,9 @@ class GedcomService {
   
       return stats;
     } catch (error) {
-      logger.error(`Error importing GEDCOM data: ${error.message}`, { stack: error.stack });
-      throw new Error(`Failed to import GEDCOM data: ${error.message}`);
+      const err = error as Error;
+      logger.error(`Error importing GEDCOM data: ${err.message}`, { stack: err.stack });
+      throw new Error(`Failed to import GEDCOM data: ${err.message}`);
     }
   }
 
@@ -288,14 +291,58 @@ class GedcomService {
     
     // Define event types to look for in GEDCOM
     const eventTypes = [
-      { gedcom: 'EDUC', type: 'Education', title: 'Education' },
-      { gedcom: 'OCCU', type: 'Work', title: 'Occupation' },
-      { gedcom: 'RESI', type: 'Residence', title: 'Residence' },
-      { gedcom: 'RETI', type: 'Work', title: 'Retirement' },
-      { gedcom: 'GRAD', type: 'Education', title: 'Graduation' },
-      { gedcom: 'CENS', type: 'Custom', title: 'Census' },
-      { gedcom: 'MILI', type: 'Military', title: 'Military Service' },
-      { gedcom: 'EVEN', type: 'Custom', title: 'Event' }
+      { gedcom: 'BIRT', type: 'Life', title: 'Birth' },
+          { gedcom: 'CHR', type: 'Religious', title: 'Christening' },
+          { gedcom: 'DEAT', type: 'Life', title: 'Death' },
+          { gedcom: 'BURI', type: 'Life', title: 'Burial' },
+          { gedcom: 'CREM', type: 'Life', title: 'Cremation' },
+
+          // Name & Identity
+          { gedcom: 'NAME', type: 'Identity', title: 'Name' },
+          { gedcom: 'NICK', type: 'Identity', title: 'Nickname' },
+          { gedcom: 'TITL', type: 'Identity', title: 'Title' },
+
+          // Relationships
+          { gedcom: 'MARR', type: 'Family', title: 'Marriage' },
+          { gedcom: 'ENGA', type: 'Family', title: 'Engagement' },
+          { gedcom: 'DIV', type: 'Family', title: 'Divorce' },
+          { gedcom: 'DIVF', type: 'Family', title: 'Divorce Filed' },
+          { gedcom: 'MARS', type: 'Family', title: 'Marriage Settlement' },
+
+          // Children-related
+          { gedcom: 'ADOP', type: 'Family', title: 'Adoption' },
+          { gedcom: 'BAPM', type: 'Religious', title: 'Baptism' },
+          { gedcom: 'BARM', type: 'Religious', title: 'Bar Mitzvah' },
+          { gedcom: 'BASM', type: 'Religious', title: 'Bas Mitzvah' },
+          { gedcom: 'CHRA', type: 'Religious', title: 'Adult Christening' },
+          { gedcom: 'CONF', type: 'Religious', title: 'Confirmation' },
+
+          // Education & Work
+          { gedcom: 'EDUC', type: 'Education', title: 'Education' },
+          { gedcom: 'GRAD', type: 'Education', title: 'Graduation' },
+          { gedcom: 'OCCU', type: 'Work', title: 'Occupation' },
+          { gedcom: 'RETI', type: 'Work', title: 'Retirement' },
+          { gedcom: 'RESI', type: 'Residence', title: 'Residence' },
+
+          // Military & Legal
+          { gedcom: 'MILI', type: 'Military', title: 'Military Service' },
+          { gedcom: 'PROB', type: 'Legal', title: 'Probate' },
+          { gedcom: 'WILL', type: 'Legal', title: 'Will' },
+          { gedcom: 'NATI', type: 'Legal', title: 'Nationality' },
+          { gedcom: 'EMIG', type: 'Migration', title: 'Emigration' },
+          { gedcom: 'IMMI', type: 'Migration', title: 'Immigration' },
+          { gedcom: 'CITI', type: 'Legal', title: 'Naturalization' },
+
+          // Health & Other
+          { gedcom: 'DSCR', type: 'Health', title: 'Physical Description' },
+          { gedcom: 'CAST', type: 'Social', title: 'Caste' },
+          { gedcom: 'RELI', type: 'Religious', title: 'Religion' },
+
+          // Custom or Miscellaneous
+              { gedcom: 'EVEN', type: 'Custom', title: 'Custom Event' },
+          { gedcom: 'CENS', type: 'Custom', title: 'Census' },
+          { gedcom: 'FACT', type: 'Custom', title: 'Fact' },
+          { gedcom: 'UID', type: 'Technical', title: 'Unique Identifier' },
     ];
   
     for (const eventDef of eventTypes) {
@@ -360,8 +407,10 @@ class GedcomService {
           const event = new Event(eventData);
           await event.save();
           eventCount++;
+          
         } catch (error) {
-          logger.warn(`Failed to create event ${eventDef.gedcom} for person ${personId}: ${error.message}`);
+          const err = error as Error;
+          logger.warn(`Failed to create event ${eventDef.gedcom} for person ${personId}: ${err.message}`);
         }
       }
     }
@@ -391,7 +440,8 @@ class GedcomService {
           eventCount++;
         }
       } catch (error) {
-        logger.warn(`Failed to create address event for person ${personId}: ${error.message}`);
+        const err = error as Error;
+        logger.warn(`Failed to create address event for person ${personId}: ${err.message}`);
       }
     }
     
@@ -412,7 +462,8 @@ class GedcomService {
         await event.save();
         eventCount++;
       } catch (error) {
-        logger.warn(`Failed to create email event for person ${personId}: ${error.message}`);
+        const err = error as Error;
+        logger.warn(`Failed to create email event for person ${personId}: ${err.message}`);
       }
     }
   
@@ -462,8 +513,11 @@ class GedcomService {
         
         await spouseRelationship.save();
         logger.debug(`Created spouse relationship between ${husbandId} and ${wifeId}`);
+        
       } catch (error) {
-        logger.warn(`Failed to create spouse relationship: ${error.message}`);
+       
+        const err = error as Error;
+        logger.warn(`Failed to create spouse relationship: ${err.message}`);
       }
     }
 
@@ -503,7 +557,9 @@ class GedcomService {
           logger.debug(`Created parent-child relationship between ${wifeId} and ${childId}`);
         }
       } catch (error) {
-        logger.warn(`Failed to create parent-child relationship: ${error.message}`);
+      
+        const err = error as Error;
+        logger.warn(`Failed to create parent-child relationship: ${err.message}`);
       }
     }
     
@@ -528,7 +584,8 @@ class GedcomService {
           await siblingRelationship.save();
           logger.debug(`Created sibling relationship between ${child1Id} and ${child2Id}`);
         } catch (error) {
-          logger.warn(`Failed to create sibling relationship: ${error.message}`);
+          const err = error as Error;
+          logger.warn(`Failed to create sibling relationship: ${err.message}`);
         }
       }
     }
@@ -599,7 +656,8 @@ class GedcomService {
         mediaMap.set(mediaId, media._id.toString());
         logger.debug(`Saved media object ${mediaId} to database (ID: ${media._id})`);
       } catch (error) {
-        logger.error(`Error processing media object: ${error.message}`);
+        const err = error as Error;
+        logger.error(`Error processing media object: ${err.message}`);
       }
     }
     
@@ -726,7 +784,8 @@ class GedcomService {
               personMediaIds.push(media._id);
             }
           } catch (error) {
-            logger.warn(`Failed to process inline media for person ${personId}: ${error.message}`);
+            const err = error as Error;
+            logger.warn(`Failed to process inline media for person ${personId}: ${err.message}`);
           }
         }
       }
