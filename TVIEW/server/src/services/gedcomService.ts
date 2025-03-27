@@ -291,59 +291,53 @@ class GedcomService {
     
     // Define event types to look for in GEDCOM
     const eventTypes = [
-      { gedcom: 'BIRT', type: 'Life', title: 'Birth' },
-          { gedcom: 'CHR', type: 'Religious', title: 'Christening' },
-          { gedcom: 'DEAT', type: 'Life', title: 'Death' },
-          { gedcom: 'BURI', type: 'Life', title: 'Burial' },
-          { gedcom: 'CREM', type: 'Life', title: 'Cremation' },
-
-          // Name & Identity
-          { gedcom: 'NAME', type: 'Identity', title: 'Name' },
-          { gedcom: 'NICK', type: 'Identity', title: 'Nickname' },
-          { gedcom: 'TITL', type: 'Identity', title: 'Title' },
-
-          // Relationships
-          { gedcom: 'MARR', type: 'Family', title: 'Marriage' },
-          { gedcom: 'ENGA', type: 'Family', title: 'Engagement' },
-          { gedcom: 'DIV', type: 'Family', title: 'Divorce' },
-          { gedcom: 'DIVF', type: 'Family', title: 'Divorce Filed' },
-          { gedcom: 'MARS', type: 'Family', title: 'Marriage Settlement' },
-
-          // Children-related
-          { gedcom: 'ADOP', type: 'Family', title: 'Adoption' },
-          { gedcom: 'BAPM', type: 'Religious', title: 'Baptism' },
-          { gedcom: 'BARM', type: 'Religious', title: 'Bar Mitzvah' },
-          { gedcom: 'BASM', type: 'Religious', title: 'Bas Mitzvah' },
-          { gedcom: 'CHRA', type: 'Religious', title: 'Adult Christening' },
-          { gedcom: 'CONF', type: 'Religious', title: 'Confirmation' },
-
-          // Education & Work
-          { gedcom: 'EDUC', type: 'Education', title: 'Education' },
-          { gedcom: 'GRAD', type: 'Education', title: 'Graduation' },
-          { gedcom: 'OCCU', type: 'Work', title: 'Occupation' },
-          { gedcom: 'RETI', type: 'Work', title: 'Retirement' },
-          { gedcom: 'RESI', type: 'Residence', title: 'Residence' },
-
-          // Military & Legal
-          { gedcom: 'MILI', type: 'Military', title: 'Military Service' },
-          { gedcom: 'PROB', type: 'Legal', title: 'Probate' },
-          { gedcom: 'WILL', type: 'Legal', title: 'Will' },
-          { gedcom: 'NATI', type: 'Legal', title: 'Nationality' },
-          { gedcom: 'EMIG', type: 'Migration', title: 'Emigration' },
-          { gedcom: 'IMMI', type: 'Migration', title: 'Immigration' },
-          { gedcom: 'CITI', type: 'Legal', title: 'Naturalization' },
-
-          // Health & Other
-          { gedcom: 'DSCR', type: 'Health', title: 'Physical Description' },
-          { gedcom: 'CAST', type: 'Social', title: 'Caste' },
-          { gedcom: 'RELI', type: 'Religious', title: 'Religion' },
-
-          // Custom or Miscellaneous
-              { gedcom: 'EVEN', type: 'Custom', title: 'Custom Event' },
-          { gedcom: 'CENS', type: 'Custom', title: 'Census' },
-          { gedcom: 'FACT', type: 'Custom', title: 'Fact' },
-          { gedcom: 'UID', type: 'Technical', title: 'Unique Identifier' },
+      { gedcom: 'BIRT', type: 'Birth', title: 'Birth' },
+      { gedcom: 'CHR', type: 'Baptism', title: 'Christening' },
+      { gedcom: 'DEAT', type: 'Death', title: 'Death' },
+      { gedcom: 'BURI', type: 'Burial', title: 'Burial' },
+      { gedcom: 'CREM', type: 'Burial', title: 'Cremation' },
+    
+      { gedcom: 'NAME', type: 'Identity', title: 'Name' }, // optional: skip if not stored
+      { gedcom: 'NICK', type: 'Identity', title: 'Nickname' }, // same
+      { gedcom: 'TITL', type: 'Identity', title: 'Title' }, // same
+    
+      { gedcom: 'MARR', type: 'Marriage', title: 'Marriage' },
+      { gedcom: 'ENGA', type: 'Engagement', title: 'Engagement' },
+      { gedcom: 'DIV', type: 'Divorce', title: 'Divorce' },
+      { gedcom: 'DIVF', type: 'Divorce', title: 'Divorce Filed' },
+      { gedcom: 'MARS', type: 'Marriage', title: 'Marriage Settlement' },
+    
+      { gedcom: 'ADOP', type: 'Adoption', title: 'Adoption' },
+      { gedcom: 'BAPM', type: 'Baptism', title: 'Baptism' },
+      { gedcom: 'BARM', type: 'Baptism', title: 'Bar Mitzvah' },
+      { gedcom: 'BASM', type: 'Baptism', title: 'Bas Mitzvah' },
+      { gedcom: 'CHRA', type: 'Baptism', title: 'Adult Christening' },
+      { gedcom: 'CONF', type: 'Baptism', title: 'Confirmation' },
+    
+      { gedcom: 'EDUC', type: 'Education', title: 'Education' },
+      { gedcom: 'GRAD', type: 'Graduation', title: 'Graduation' },
+      { gedcom: 'OCCU', type: 'Work', title: 'Occupation' },
+      { gedcom: 'RETI', type: 'Retirement', title: 'Retirement' },
+      { gedcom: 'RESI', type: 'Residence', title: 'Residence' },
+    
+      { gedcom: 'MILI', type: 'Military', title: 'Military Service' },
+      { gedcom: 'PROB', type: 'Legal', title: 'Probate' }, // optional
+      { gedcom: 'WILL', type: 'Legal', title: 'Will' }, // optional
+      { gedcom: 'NATI', type: 'Custom', title: 'Nationality' },
+      { gedcom: 'EMIG', type: 'Custom', title: 'Emigration' },
+      { gedcom: 'IMMI', type: 'Custom', title: 'Immigration' },
+      { gedcom: 'CITI', type: 'Custom', title: 'Naturalization' },
+    
+      { gedcom: 'DSCR', type: 'Medical', title: 'Physical Description' },
+      { gedcom: 'CAST', type: 'Custom', title: 'Caste' },
+      { gedcom: 'RELI', type: 'Custom', title: 'Religion' },
+    
+      { gedcom: 'EVEN', type: 'Custom', title: 'Custom Event' },
+      { gedcom: 'CENS', type: 'Census', title: 'Census' },
+      { gedcom: 'FACT', type: 'Custom', title: 'Fact' },
+      { gedcom: 'UID', type: 'Technical', title: 'Unique Identifier' }, // skip if not meaningful
     ];
+    
   
     for (const eventDef of eventTypes) {
       const eventNodes = individual.children?.filter((node: any) => 
@@ -467,7 +461,7 @@ class GedcomService {
       }
     }
   
-    return eventCount;
+    return eventCount; 
   }
 
   /**
@@ -489,10 +483,11 @@ class GedcomService {
     const wifeNode = family.children?.find((node: any) => node.type === 'WIFE');
     
     const husbandId = husbandNode ? 
-      individualMap.get(husbandNode.data?.value || husbandNode.value || '') : null;
-    
-    const wifeId = wifeNode ? 
-      individualMap.get(wifeNode.data?.value || wifeNode.value || '') : null;
+    individualMap.get(husbandNode.data?.pointer || husbandNode.data?.value || husbandNode.value || '') : null;
+  
+  const wifeId = wifeNode ? 
+    individualMap.get(wifeNode.data?.pointer || wifeNode.data?.value || wifeNode.value || '') : null;
+  
 
     // Create marriage/spouse relationship if both husband and wife exist
     if (husbandId && wifeId) {
@@ -553,8 +548,9 @@ class GedcomService {
     
     for (const childNode of childNodes) {
       try {
-        const rawChildRef = childNode.data?.value || childNode.value || '';
-        const childRef = rawChildRef.trim(); // remove leading/trailing whitespace
+        
+        const childRef = childNode.data?.pointer || childNode.data?.value || childNode.value || '';
+
         
         const childId = individualMap.get(childRef);
         

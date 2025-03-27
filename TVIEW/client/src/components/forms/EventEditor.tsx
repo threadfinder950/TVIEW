@@ -81,8 +81,23 @@ const eventTypes = [
   'Medical',
   'Travel',
   'Achievement',
-  'Custom'
-];
+  'Custom',
+  'Marriage',
+  'Divorce',
+  'Engagement',
+  'Separation',
+  'Annulment',
+  'Adoption',
+  'Baptism',
+  'Burial',
+  'Birth',
+  'Death',
+  'Retirement',
+  'Graduation',
+  'Census',
+  'Contact',
+  'ResearchNote'
+] as const;
 
 const EventEditor: React.FC<EventEditorProps> = ({ personId, eventId, onSave, onCancel, onClose }) => {
   // Enhanced to include selectedPersonIds as an array
