@@ -114,7 +114,7 @@ function PersonDetails() {
               {person.gender && (
                 <Chip 
                   label={
-                    person.gender === 'M' ? 'Male' : 
+                    person.gender === 'M' ? 'Mail' : 
                     person.gender === 'F' ? 'Female' : 
                     person.gender === 'O' ? 'Other' : 'Unknown'
                   }

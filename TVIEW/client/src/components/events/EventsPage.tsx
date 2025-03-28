@@ -31,7 +31,6 @@ import {
   School as SchoolIcon,
   Timeline as TimelineIcon,
   List as ListIcon,
-  People as PeopleIcon,
   MilitaryTech as MilitaryIcon,
   LocalHospital as MedicalIcon,
   FlightTakeoff as TravelIcon,
@@ -46,7 +45,6 @@ import {
   PersonSearch as PersonSearchIcon,
   NoteAlt as NoteAltIcon,
   Person as PersonIcon,
-  Bedroom as BedroomIcon,
   MenuBook as MenuBookIcon
 } from '@mui/icons-material';
 import axios from 'axios';
@@ -93,7 +91,7 @@ function EventsPage() {
       case 'Burial': return <TerrainIcon />;
       case 'Baptism': return <WaterIcon />;
       case 'Census': return <PeopleAltIcon />;
-      case 'Retirement': return <BedroomIcon />;
+      case 'Retirement': return <TravelIcon />;
       case 'Graduation': return <MenuBookIcon />;
       case 'Contact': return <PersonIcon />;
       case 'ResearchNote': return <NoteAltIcon />;

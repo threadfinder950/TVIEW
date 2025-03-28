@@ -52,7 +52,7 @@ const theme = createTheme({
       main: '#3f51b5',
     },
     secondary: {
-      main: '#f50057',
+      main: '#f50057', 
     },
   },
 });
@@ -218,7 +218,7 @@ function App() {
           </Drawer>
           
           <Box
-            component="main"
+            component="main" 
             sx={{
               flexGrow: 1,
               p: 3,
@@ -231,7 +231,7 @@ function App() {
                 <Route path="/import" element={<GedcomImport />} />
                 <Route path="/people" element={<PeopleList />} />
                 <Route path="/people/:id" element={<PersonDetails />} />
-                <Route path="/family/:id" element={<FamilyView />} /> {/* New route */}
+                <Route path="/family/:id" element={<FamilyView />} /> 
                 <Route path="/events" element={<EventsPage />} />
                 <Route path="/export" element={<ExportData />} />
                 <Route path="/admin/database" element={<DatabaseManager />} />

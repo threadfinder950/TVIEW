@@ -1,5 +1,6 @@
 // Enhanced PersonTimeline.tsx with TypeScript fixes
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Paper,
   Typography,
@@ -18,6 +19,7 @@ import {
   MenuItem,
   Divider
 } from '@mui/material';
+import { People as PeopleIcon } from '@mui/icons-material';
 import Timeline from '@mui/lab/Timeline';
 import TimelineItem from '@mui/lab/TimelineItem';
 import TimelineSeparator from '@mui/lab/TimelineSeparator';
@@ -150,7 +152,43 @@ const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName })
       setLoading(false);
     }
   };
+
+ // Define the PersonNavigationMenu component outside the return statement
+const PersonNavigationMenu = (): React.ReactNode => {
+  const navigate = useNavigate();
   
+  const handleViewFamily = () => {
+    navigate(`/family/${personId}`);
+  };
+  
+  const handleViewPerson = () => {
+    navigate(`/people/${personId}`);
+  };
+  
+  return (
+    <Paper elevation={2} sx={{ p: 1, mb: 3 }}>
+      <Box display="flex" justifyContent="center" gap={2}>
+        <Button
+          variant="outlined"
+          startIcon={<PeopleIcon />}
+          onClick={handleViewFamily}
+          aria-label="View Family Members"
+        >
+          Family Members
+        </Button>
+        <Button
+          variant="outlined"
+          startIcon={<PersonIcon />}
+          onClick={handleViewPerson}
+          aria-label="View Person Details"
+        >
+          Person Details
+        </Button>
+      </Box>
+    </Paper>
+  );
+};
+
   useEffect(() => {
     fetchEvents();
   }, [personId]);
@@ -381,7 +419,7 @@ const PersonSummary = (): React.ReactNode => {
     <div>
       {/* Person summary at the top */}
       <PersonSummary />
-      
+      <PersonNavigationMenu />
       {/* Timeline controls */}
       <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
         <Grid container justifyContent="space-between" alignItems="center">
