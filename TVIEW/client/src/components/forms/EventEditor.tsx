@@ -116,10 +116,15 @@ const EventEditor: React.FC<EventEditorProps> = ({ personId, eventId, onSave, on
 useEffect(() => {
   const loadData = async () => {
     try {
+      
+      console.log("Starting to load event data for ID:", eventId);
       setLoading(true);
+      console.log("Fetching people list...");
       
       // Always fetch available people for multi-select
       const peopleResponse = await axios.get(API.persons.getAll);
+     
+      console.log("People data received:", peopleResponse.data.length, "people found");
       setAvailablePeople(peopleResponse.data);
       
       // Fetch event data if editing an existing event

@@ -125,7 +125,8 @@ const eventSchema = new mongoose.Schema<IEvent>({
   timestamps: true
 });
 
-eventSchema.pre('save', function(next) {
+// Ensure 'this' is properly typed
+eventSchema.pre<IEvent>('save', function (next) {
   if (this.persons && this.persons.length > 0 && !this.person) {
     this.person = this.persons[0];
   }
