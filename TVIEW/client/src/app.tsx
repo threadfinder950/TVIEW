@@ -42,6 +42,7 @@ import PersonTimeline from './components/timeline/PersonTimeline';
 import PeopleList from './components/people/PeopleList'; // Import the new PeopleList component
 import EventsPage from './components/events/EventsPage';
 import ExportData from './components/export/ExportData';
+import FamilyView from './components/family/FamilyView'; // Import the FamilyView component
 import { API } from './config/api';
 import DatabaseManager from './components/admin/DatabaseManager';
 
@@ -182,7 +183,7 @@ function App() {
                 </ListItemButton>
               </ListItem>
               
-              <ListItem component={Link} to="/events" disablePadding>
+               <ListItem component={Link} to="/events" disablePadding>
                 <ListItemButton>
                   <ListItemIcon><EventIcon /></ListItemIcon>
                   <ListItemText primary="Events" />
@@ -230,6 +231,7 @@ function App() {
                 <Route path="/import" element={<GedcomImport />} />
                 <Route path="/people" element={<PeopleList />} />
                 <Route path="/people/:id" element={<PersonDetails />} />
+                <Route path="/family/:id" element={<FamilyView />} /> {/* New route */}
                 <Route path="/events" element={<EventsPage />} />
                 <Route path="/export" element={<ExportData />} />
                 <Route path="/admin/database" element={<DatabaseManager />} />

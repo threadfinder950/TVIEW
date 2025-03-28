@@ -26,9 +26,11 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import axios from 'axios';
 import { API } from '../../config/api';
 import { isValidDate } from '../../utils/dateUtils';
+import { EventType } from '../events/EventsPage.types';
 
+// Form data interface
 interface EventFormData {
-  type: string;
+  type: EventType;
   title: string;
   description: string;
   date: {
@@ -46,6 +48,7 @@ interface EventFormData {
   notes: string;
 }
 
+// Component props
 interface EventEditorProps {
   personId?: string; // Optional - if provided, will add this person automatically
   eventId?: string; // Optional - for editing existing events
@@ -54,26 +57,8 @@ interface EventEditorProps {
   onClose?: () => void; // Added for better compatibility
 }
 
-const initialFormData: EventFormData = {
-  type: 'Custom',
-  title: '',
-  description: '',
-  date: {
-    start: null,
-    end: null,
-    isRange: false,
-  },
-  location: {
-    place: '',
-    coordinates: {
-      latitude: null,
-      longitude: null,
-    },
-  },
-  notes: '',
-};
-
-const eventTypes = [
+// All available event types
+const eventTypes: EventType[] = [
   'Work',
   'Education',
   'Residence',
@@ -97,10 +82,36 @@ const eventTypes = [
   'Census',
   'Contact',
   'ResearchNote'
-] as const;
+];
+
+// Initial form data
+const initialFormData: EventFormData = {
+  type: 'Custom',
+  title: '',
+  description: '',
+  date: {
+    start: null,
+    end: null,
+    isRange: false,
+  },
+  location: {
+    place: '',
+    coordinates: {
+      latitude: null,
+      longitude: null,
+    },
+  },
+  notes: '',
+};
 
 const EventEditor: React.FC<EventEditorProps> = ({ personId, eventId, onSave, onCancel, onClose }) => {
-  // Enhanced to include selectedPersonIds as an array
+  console.log('==========================================');
+  console.log('EVENTEDITIOR COMPONENT RENDERED');
+  console.log('eventId:', eventId);
+  console.log('personId:', personId);
+  console.log('==========================================');
+
+  // State
   const [formData, setFormData] = useState<EventFormData & { selectedPersonIds: string[] }>({
     ...initialFormData,
     selectedPersonIds: personId ? [personId] : []
@@ -110,109 +121,149 @@ const EventEditor: React.FC<EventEditorProps> = ({ personId, eventId, onSave, on
   const [success, setSuccess] = useState<boolean>(false);
   const [availablePeople, setAvailablePeople] = useState<any[]>([]);
   
-  // If eventId is provided, fetch the event data
-  // If no personId is provided or if we're editing, fetch the list of people
- // In src/components/forms/EventEditor.tsx
-useEffect(() => {
-  const loadData = async () => {
-    try {
-      
-      console.log("Starting to load event data for ID:", eventId);
-      setLoading(true);
-      console.log("Fetching people list...");
-      
-      // Always fetch available people for multi-select
-      const peopleResponse = await axios.get(API.persons.getAll);
-     
-      console.log("People data received:", peopleResponse.data.length, "people found");
-      setAvailablePeople(peopleResponse.data);
-      
-      // Fetch event data if editing an existing event
-      if (eventId) {
-        const response = await axios.get(API.events.getById(eventId));
+  // Load event data and people
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        console.log("Starting to load event data for ID:", eventId);
+        setLoading(true);
         
-        // Convert string dates to Date objects if they're valid
-        const eventData = {
-          ...response.data,
-          date: {
-            ...response.data.date,
-            start: response.data.date.start && isValidDate(response.data.date.start) ? 
-              new Date(response.data.date.start) : null,
-            end: response.data.date.end && isValidDate(response.data.date.end) ? 
-              new Date(response.data.date.end) : null,
+        // Always fetch available people for multi-select
+        console.log("Fetching people list...");
+        const peopleResponse = await axios.get(API.persons.getAll);
+        console.log("People data received:", peopleResponse.data.length, "people found");
+        setAvailablePeople(peopleResponse.data);
+        
+        // Fetch event data if editing an existing event
+        if (eventId) {
+          try {
+            console.log("Fetching event details for event ID:", eventId);
+            console.log("API URL:", API.events.getById(eventId));
+            
+            const response = await axios.get(API.events.getById(eventId));
+            console.log("Event data received:", response.data);
+            
+            // Convert string dates to Date objects if they're valid
+            const eventData = {
+              ...response.data,
+              date: {
+                ...response.data.date,
+                start: response.data.date?.start && isValidDate(response.data.date.start) ? 
+                  new Date(response.data.date.start) : null,
+                end: response.data.date?.end && isValidDate(response.data.date.end) ? 
+                  new Date(response.data.date.end) : null,
+                isRange: response.data.date?.isRange || false
+              },
+              // Ensure these fields are defined
+              description: response.data.description || '',
+              notes: response.data.notes || '',
+              location: response.data.location || { 
+                place: '', 
+                coordinates: { latitude: null, longitude: null } 
+              }
+            };
+            
+            // Handle the conversion of persons field
+            const personsArray = Array.isArray(response.data.persons) 
+              ? response.data.persons.map((p: any) => typeof p === 'object' ? p._id : p)
+              : response.data.person  // Handle legacy data with single person
+                ? [response.data.person]
+                : [];
+            
+            console.log("Processed persons array:", personsArray);
+            
+            setFormData({
+              ...eventData,
+              selectedPersonIds: personsArray
+            });
+            
+            console.log("Form data initialized with event values");
+          } catch (fetchError) {
+            console.error("Error fetching event:", fetchError);
+            setError('Failed to fetch event details');
           }
-        };
+        } else {
+          console.log("Creating new event, form initialized with defaults");
+        }
         
-        // Handle the conversion of persons field
-        const personsArray = Array.isArray(response.data.persons) 
-          ? response.data.persons.map((p) => typeof p === 'object' ? p._id : p)
-          : response.data.person  // Handle legacy data with single person
-            ? [response.data.person]
-            : [];
-        
-        setFormData({
-          ...eventData,
-          selectedPersonIds: personsArray
-        });
+        setLoading(false);
+      } catch (err) {
+        console.error("General error in loadData:", err);
+        if (axios.isAxiosError(err) && err.response) {
+          setError(err.response.data.message || 'Failed to load data');
+        } else if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError('An unknown error occurred');
+        }
+        setLoading(false);
       }
-      
-      setLoading(false);
-    } catch (err) {
-      let errorMessage = 'Failed to fetch data';
-      if (axios.isAxiosError(err) && err.response) {
-        errorMessage = err.response.data.message || errorMessage;
-      } else if (err instanceof Error) {
-        errorMessage = err.message;
-      }
-      setError(errorMessage);
-      setLoading(false);
-    }
-  };
+    };
+    
+    loadData();
+    
+    return () => {
+      console.log('==========================================');
+      console.log('EVENTEDITIOR UNMOUNTING');
+      console.log('==========================================');
+    };
+  }, [eventId, personId]);
   
-  loadData();
-}, [eventId, personId]);
-  
-  // Handler for text input changes
+  // Handle form input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    console.log(`Input changed: ${name} = ${value}`);
     setFormData({
       ...formData,
       [name]: value,
     });
   };
   
-  // Handler for select dropdown changes
+  // Handle select dropdown changes
   const handleSelectChange = (e: SelectChangeEvent) => {
     const { name, value } = e.target;
+    console.log(`Select changed: ${name} = ${value}`);
     setFormData({
       ...formData,
       [name]: value,
     });
   };
   
-  // Handler for multiple person selection
+  // Handle multiple person selection
   const handlePersonSelectChange = (event: SelectChangeEvent<string[]>) => {
     const { value } = event.target;
+    const personIds = typeof value === 'string' ? value.split(',') : value;
+    console.log("Persons selection changed:", personIds);
     setFormData({
       ...formData,
-      selectedPersonIds: typeof value === 'string' ? value.split(',') : value,
+      selectedPersonIds: personIds,
     });
   };
   
-  // Handler for date changes
+  // Handle date changes
   const handleDateChange = (date: Date | null, fieldName: string) => {
+    console.log(`Date changed: ${fieldName} = ${date}`);
+    
+    // Remove time component from date
+    let dateWithoutTime = null;
+    if (date) {
+      dateWithoutTime = new Date(date);
+      dateWithoutTime.setHours(0, 0, 0, 0);
+    }
+    
     setFormData({
       ...formData,
       date: {
         ...formData.date,
-        [fieldName]: date,
+        [fieldName]: dateWithoutTime,
       },
     });
   };
   
-  // Handler for location changes
+  // Handle location changes
   const handleLocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    console.log(`Location changed: ${name} = ${value}`);
     setFormData({
       ...formData,
       location: {
@@ -222,10 +273,11 @@ useEffect(() => {
     });
   };
   
-  // Handler for coordinate changes
+  // Handle coordinate changes
   const handleCoordinateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     const numValue = value === '' ? null : parseFloat(value);
+    console.log(`Coordinate changed: ${name} = ${numValue}`);
     
     setFormData({
       ...formData,
@@ -239,9 +291,10 @@ useEffect(() => {
     });
   };
   
-  // Handler for date range toggle
+  // Handle date range toggle
   const handleRangeToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { checked } = e.target;
+    console.log(`Date range toggled: ${checked}`);
     setFormData({
       ...formData,
       date: {
@@ -255,6 +308,7 @@ useEffect(() => {
   // Form submission handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("Form submitted");
     
     try {
       setLoading(true);
@@ -262,35 +316,40 @@ useEffect(() => {
       
       // Validate that at least one person is selected
       if (formData.selectedPersonIds.length === 0) {
+        console.error("No persons selected");
         setError('Please select at least one person for this event');
         setLoading(false);
         return;
       }
       
       // Prepare the event data with the persons array
+      const { selectedPersonIds, ...eventDataWithoutSelected } = formData;
       const eventData = {
-        ...formData,
-        persons: formData.selectedPersonIds,
+        ...eventDataWithoutSelected,
+        persons: selectedPersonIds,
       };
       
-      // Remove the selectedPersonIds field since it's not part of the model
-      delete eventData.selectedPersonIds;
-      
-      let response;
+      console.log("Prepared event data for submission:", eventData);
       
       if (eventId) {
         // Update existing event
-        response = await axios.patch(API.events.update(eventId), eventData);
+        console.log("Updating existing event with ID:", eventId);
+        await axios.patch(API.events.update(eventId), eventData);
+        console.log("Event updated successfully");
       } else {
         // Create new event
-        response = await axios.post(API.events.create, eventData);
+        console.log("Creating new event");
+        await axios.post(API.events.create, eventData);
+        console.log("Event created successfully");
       }
       
       setSuccess(true);
+      console.log("Success state set to true");
       setLoading(false);
       
       // Reset form after successful submit if creating a new event
       if (!eventId) {
+        console.log("Resetting form for new event creation");
         setFormData({
           ...initialFormData,
           selectedPersonIds: personId ? [personId] : []
@@ -299,12 +358,15 @@ useEffect(() => {
       
       // Call onSave callback if provided
       if (onSave) {
+        console.log("Calling onSave callback");
         onSave();
       }
     } catch (err) {
+      console.error("Error saving event:", err);
       let errorMessage = 'Failed to save event';
       if (axios.isAxiosError(err) && err.response) {
         errorMessage = err.response.data.message || errorMessage;
+        console.error("API error response:", err.response.data);
       } else if (err instanceof Error) {
         errorMessage = err.message;
       }
@@ -313,11 +375,15 @@ useEffect(() => {
     }
   };
   
+  // Cancel button handler
   const handleCancelClick = () => {
+    console.log("Cancel button clicked");
     if (onCancel) {
+      console.log("Calling onCancel callback");
       onCancel();
     }
     if (onClose) {
+      console.log("Calling onClose callback");
       onClose();
     }
   };
@@ -331,10 +397,24 @@ useEffect(() => {
     return `${person.names[0].given} ${person.names[0].surname}`;
   };
   
+  // Debug before render
+  console.log("RENDER STATE:", { 
+    loading, 
+    error, 
+    formData: { 
+      ...formData, 
+      date: {
+        ...formData.date,
+        start: formData.date?.start?.toString(),
+        end: formData.date?.end?.toString()
+      }
+    }
+  });
+  
   return (
     <Paper elevation={3} sx={{ p: 4, mt: 2 }}>
-      <Typography variant="h5" gutterBottom>
-        {eventId ? 'Edit Event' : 'Add New Event'}
+     <Typography variant="h5" gutterBottom>
+        {eventId ? 'Edit Event' : 'Add New Event'} {eventId ? `(ID: ${eventId})` : ''}
       </Typography>
       <Divider sx={{ mb: 3 }} />
       
@@ -345,8 +425,11 @@ useEffect(() => {
       )}
       
       {loading && !formData.title ? (
-        <Box display="flex" justifyContent="center" p={3}>
+        <Box display="flex" flexDirection="column" alignItems="center" p={3}>
           <CircularProgress />
+          <Typography variant="body2" sx={{ mt: 2 }}>
+            Loading event data...
+          </Typography>
         </Box>
       ) : (
         <form onSubmit={handleSubmit}>
@@ -423,7 +506,7 @@ useEffect(() => {
                 fullWidth
                 multiline
                 minRows={3}
-                value={formData.description}
+                value={formData.description || ''}
                 onChange={handleInputChange}
               />
             </Grid>
@@ -476,7 +559,7 @@ useEffect(() => {
                 name="place"
                 label="Location"
                 fullWidth
-                value={formData.location.place}
+                value={formData.location?.place || ''}
                 onChange={handleLocationChange}
               />
             </Grid>
@@ -488,7 +571,7 @@ useEffect(() => {
                 fullWidth
                 type="number"
                 inputProps={{ step: 'any' }}
-                value={formData.location.coordinates.latitude === null ? '' : formData.location.coordinates.latitude}
+                value={formData.location?.coordinates?.latitude === null ? '' : formData.location?.coordinates?.latitude}
                 onChange={handleCoordinateChange}
               />
             </Grid>
@@ -500,7 +583,7 @@ useEffect(() => {
                 fullWidth
                 type="number"
                 inputProps={{ step: 'any' }}
-                value={formData.location.coordinates.longitude === null ? '' : formData.location.coordinates.longitude}
+                value={formData.location?.coordinates?.longitude === null ? '' : formData.location?.coordinates?.longitude}
                 onChange={handleCoordinateChange}
               />
             </Grid>
@@ -512,7 +595,7 @@ useEffect(() => {
                 fullWidth
                 multiline
                 minRows={3}
-                value={formData.notes}
+                value={formData.notes || ''}
                 onChange={handleInputChange}
               />
             </Grid>
