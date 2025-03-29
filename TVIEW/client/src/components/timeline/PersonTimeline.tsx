@@ -1,6 +1,7 @@
 // Enhanced PersonTimeline.tsx with TypeScript fixes
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+
 import {
   Paper,
   Typography,
@@ -112,6 +113,7 @@ interface PersonDetails {
 
 const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName }) => {
   const [events, setEvents] = useState<Event[]>([]);
+  const navigate = useNavigate(); //
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddEvent, setShowAddEvent] = useState<boolean>(false);
@@ -120,6 +122,13 @@ const PersonTimeline: React.FC<PersonTimelineProps> = ({ personId, personName })
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [showFilters, setShowFilters] = useState<boolean>(false);
   const [personDetails, setPersonDetails] = useState<PersonDetails | null>(null);
+  
+  const handleEditPerson = () => {
+    navigate(`/people/${personId}/edit`);
+  };
+
+
+
 
   // Fetch events for the person
   const fetchEvents = async (): Promise<void> => {
@@ -177,13 +186,13 @@ const PersonNavigationMenu = (): React.ReactNode => {
           Family Members
         </Button>
         <Button
-          variant="outlined"
-          startIcon={<PersonIcon />}
-          onClick={handleViewPerson}
-          aria-label="View Person Details"
-        >
-          Person Details
-        </Button>
+            variant="outlined"
+            startIcon={<EditIcon />}
+            onClick={handleEditPerson}
+            aria-label="Edit Person"
+          >
+            Edit Person
+          </Button>
       </Box>
     </Paper>
   );
@@ -256,6 +265,9 @@ const PersonNavigationMenu = (): React.ReactNode => {
     }
   };
   
+  
+
+
   const formatEventDate = (event: Event): string => {
     if (!event.date || !event.date.start) return 'No date';
     
