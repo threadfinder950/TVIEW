@@ -1,27 +1,31 @@
 // src/App.tsx
 import { useState, useEffect } from 'react';
+
 import { 
   BrowserRouter as Router, 
   Routes, 
   Route, 
   Link,
-  useParams 
+  useParams,
+  useNavigate // Add this import
 } from 'react-router-dom';
+
 import { 
   AppBar,
+  Button,
   Box,
-  Chip, 
   Toolbar, 
   Typography, 
   Container, 
   CssBaseline, 
-  Drawer, 
+  Drawer,
+  Divider,
   List, 
   ListItem, 
   ListItemIcon, 
   ListItemText, 
   ListItemButton,
-  Divider, 
+  Paper,
   createTheme,
   ThemeProvider,
   CircularProgress,
@@ -32,6 +36,7 @@ import {
   People as PeopleIcon, 
   Event as EventIcon, 
   CloudUpload as UploadIcon,
+  Edit as EditIcon,
   Settings as SettingsIcon,
   CloudDownload as ExportIcon
 } from '@mui/icons-material';
@@ -42,6 +47,7 @@ import PersonTimeline from './components/timeline/PersonTimeline';
 import PeopleList from './components/people/PeopleList'; // Import the new PeopleList component
 import EventsPage from './components/events/EventsPage';
 import ExportData from './components/export/ExportData';
+import PersonEdit from './components/people/PersonEdit'; // Ensure the file exists at this path or update the path accordingly
 import FamilyView from './components/family/FamilyView'; // Import the FamilyView component
 import { API } from './config/api';
 import DatabaseManager from './components/admin/DatabaseManager';
@@ -58,8 +64,10 @@ const theme = createTheme({
 });
 
 // Person Details Component
-const PersonDetails = () => {
+// In App.tsx - update the component name
+const PersonOverview = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [person, setPerson] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,6 +90,14 @@ const PersonDetails = () => {
     }
   }, [id]);
   
+  const handleViewFamily = () => {
+    navigate(`/family/${id}`);
+  };
+  
+  const handleEditPerson = () => {
+    navigate(`/people/${id}/edit`);
+  };
+  
   if (loading) return <CircularProgress />;
   if (error) return <Alert severity="error">{error}</Alert>;
   if (!person) return <Typography>Person not found</Typography>;
@@ -97,6 +113,28 @@ const PersonDetails = () => {
         {currentName}
       </Typography>
       
+      {/* Navigation controls at the top level */}
+      <Paper elevation={2} sx={{ p: 1, mb: 3 }}>
+        <Box display="flex" justifyContent="center" gap={2}>
+          <Button
+            variant="outlined"
+            startIcon={<PeopleIcon />}
+            onClick={handleViewFamily}
+            aria-label="View Family Members"
+          >
+            Family Members
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<EditIcon />}
+            onClick={handleEditPerson}
+            aria-label="Edit Person Details"
+          >
+            Edit Person
+          </Button>
+        </Box>
+      </Paper>
+      
       <Box sx={{ mb: 4 }}>
         <Typography variant="h6">Personal Timeline</Typography>
         <PersonTimeline personId={id || ''} personName={currentName} />
@@ -104,7 +142,6 @@ const PersonDetails = () => {
     </div>
   );
 };
-
 // Dashboard Component
 const Dashboard = () => {
   return (
@@ -230,7 +267,8 @@ function App() {
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/import" element={<GedcomImport />} />
                 <Route path="/people" element={<PeopleList />} />
-                <Route path="/people/:id" element={<PersonDetails />} />
+                <Route path="/people/:id" element={<PersonOverview />} />
+                <Route path="/people/:id/edit" element={<PersonEdit />} />
                 <Route path="/family/:id" element={<FamilyView />} /> 
                 <Route path="/events" element={<EventsPage />} />
                 <Route path="/export" element={<ExportData />} />

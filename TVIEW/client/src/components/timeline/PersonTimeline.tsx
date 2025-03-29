@@ -158,7 +158,7 @@ const PersonNavigationMenu = (): React.ReactNode => {
   const navigate = useNavigate();
   
   const handleViewFamily = () => {
-    navigate(`/family/${personId}`);
+    navigate(`/family/${personId}`); 
   };
   
   const handleViewPerson = () => {

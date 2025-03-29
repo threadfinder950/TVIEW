@@ -15,7 +15,8 @@ import {
   CircularProgress,
   Alert,
   Tabs,
-  Tab
+  Tab,
+  Button
 } from '@mui/material';
 import {
   Person as PersonIcon,
@@ -38,7 +39,7 @@ interface FamilyMember {
   imageUrl?: string;
 }
 
-function FamilyView() {
+const FamilyView = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [currentPerson, setCurrentPerson] = useState<any>(null);
@@ -100,6 +101,11 @@ function FamilyView() {
   const handlePersonClick = (personId: string) => {
     navigate(`/family/${personId}`);
   };
+  
+  // Handle navigation back to person details
+  const handleViewPersonDetails = () => {
+    navigate(`/people/${id}`);
+  };
 
   // Render a person card
   const renderPersonCard = (person: FamilyMember, relationshipLabel?: string) => (
@@ -113,9 +119,9 @@ function FamilyView() {
       <CardActionArea onClick={() => handlePersonClick(person._id)}>
         <CardContent>
           <Box display="flex" alignItems="center" mb={1}>
-          <Avatar src={person.imageUrl} sx={{ mr: 2 }}>
-                {!person.imageUrl && <PersonIcon />}
-        </Avatar>
+            <Avatar src={person.imageUrl} sx={{ mr: 2 }}>
+              {!person.imageUrl && <PersonIcon />}
+            </Avatar>
             <Box>
               <Typography variant="h6">{person.name}</Typography>
               {relationshipLabel && (
@@ -164,6 +170,18 @@ function FamilyView() {
         <Link href={`/people/${id}`}>{formatName(currentPerson)}</Link>
         <Typography color="textPrimary">Family</Typography>
       </Breadcrumbs>
+
+      {/* Navigation button to return to person details */}
+      <Box display="flex" justifyContent="center" mb={3}>
+        <Button
+          variant="outlined"
+          startIcon={<PersonIcon />}
+          onClick={handleViewPersonDetails}
+          aria-label="View Person Details"
+        >
+          Back to Person Details
+        </Button>
+      </Box>
 
       <Box mb={3}>
         <Typography variant="h4" gutterBottom>
@@ -282,6 +300,6 @@ function FamilyView() {
       )}
     </Paper>
   );
-}
+};
 
 export default FamilyView;
