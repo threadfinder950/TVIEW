@@ -113,30 +113,19 @@ export const getPersonEvents = asyncHandler(async (req: Request, res: Response) 
   
   res.json(events);
 });
-/**
- * @desc    Get a person's relationships
- * @route   GET /api/persons/:id/relationships
- * @access  Public
- */
-export const getPersonRelationships = asyncHandler(async (req: Request, res: Response) => {
-  const relationships = await Relationship.find({ 
-    persons: req.params.id 
-  }).populate('persons', 'names');
-  
-  res.json(relationships);
-});
+
 
 /**
- * @desc    Get a person's family members
+ * @desc    Get a person's family members (with inferred siblings)
  * @route   GET /api/persons/:id/family
  * @access  Public
  */
 export const getPersonFamily = asyncHandler(async (req: Request, res: Response) => {
   const personId = req.params.id;
-  
+
   // Find all relationships the person is part of
   const relationships = await Relationship.find({ persons: personId });
-  
+
   // Extract all related person IDs
   const familyIds = new Set<string>();
   relationships.forEach(rel => {
@@ -146,16 +135,16 @@ export const getPersonFamily = asyncHandler(async (req: Request, res: Response) 
       }
     });
   });
-  
+
   // Get family member details
-  const familyMembers = await Person.find({ 
-    _id: { $in: Array.from(familyIds) } 
+  const familyMembers = await Person.find({
+    _id: { $in: Array.from(familyIds) }
   });
-  
+
   // Define the type for family members
   type FamilyMember = Document<unknown, {}, IPerson> & IPerson & { _id: Types.ObjectId };
-  
-  // Organize by relationship type with proper typing
+
+  // Organize by relationship type
   const family: {
     parents: FamilyMember[];
     spouses: FamilyMember[];
@@ -167,20 +156,18 @@ export const getPersonFamily = asyncHandler(async (req: Request, res: Response) 
     children: [],
     siblings: []
   };
-  
+
   for (const rel of relationships) {
     const otherPersonIds = rel.persons
       .filter(id => id.toString() !== personId)
       .map(id => id.toString());
-    
-    const relatedPersons = familyMembers.filter(p => 
+
+    const relatedPersons = familyMembers.filter(p =>
       otherPersonIds.includes(p._id.toString())
     ) as FamilyMember[];
-    
+
     if (rel.type === 'Parent-Child') {
-      // Determine if the person is the parent or child
       const isParent = rel.persons[0].toString() === personId;
-      
       if (isParent) {
         family.children.push(...relatedPersons);
       } else {
@@ -192,6 +179,48 @@ export const getPersonFamily = asyncHandler(async (req: Request, res: Response) 
       family.siblings.push(...relatedPersons);
     }
   }
-  
+
+  // 🔁 Infer siblings via shared parents
+  const inferredSiblingIds = new Set<string>();
+
+  for (const parent of family.parents) {
+    const parentRelationships = await Relationship.find({
+      type: 'Parent-Child',
+      persons: parent._id
+    });
+
+    for (const rel of parentRelationships) {
+      const siblingIds = rel.persons
+        .filter(id => id.toString() !== parent._id.toString() && id.toString() !== personId);
+
+      siblingIds.forEach(id => inferredSiblingIds.add(id.toString()));
+    }
+  }
+
+  const inferredSiblings = await Person.find({ _id: { $in: Array.from(inferredSiblingIds) } });
+
+  // Add inferred siblings that are not already in siblings
+  for (const sib of inferredSiblings) {
+    const alreadyIncluded = family.siblings.some(s => s._id.toString() === sib._id.toString());
+    if (!alreadyIncluded) {
+      family.siblings.push(sib as FamilyMember);
+    }
+  }
+
   res.json(family);
 });
+
+/**
+ * @desc    Get a person's relationships
+ * @route   GET /api/persons/:id/relationships
+ * @access  Public
+ */
+export const getPersonRelationships = asyncHandler(async (req: Request, res: Response) => {
+  const relationships = await Relationship.find({
+    persons: req.params.id
+  }).populate('persons', 'names');
+
+  res.json(relationships);
+});
+
+

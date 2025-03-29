@@ -11,7 +11,7 @@ import {
   Avatar, 
   Divider, 
   Breadcrumbs,
-  Link,
+  Link as MuiLink,
   CircularProgress,
   Alert,
   Tabs,
@@ -21,21 +21,19 @@ import {
 import {
   Person as PersonIcon,
   FamilyRestroom as FamilyIcon,
-  AccountTree as TreeIcon,
   ArrowUpward as ParentsIcon,
   ArrowDownward as ChildrenIcon,
   Favorite as SpouseIcon
 } from '@mui/icons-material';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { API } from '../../config/api';
 
 interface FamilyMember {
   _id: string;
-  name: string;
-  relationship: string;
-  birthDate?: string;
-  deathDate?: string;
+  names: { given: string; surname: string }[];
+  birth?: { date?: string };
+  death?: { date?: string };
   imageUrl?: string;
 }
 
@@ -63,14 +61,36 @@ const FamilyView = () => {
       try {
         setLoading(true);
         setError(null);
-
-        // Get person details
+  
         const personResponse = await axios.get(API.persons.getById(id || ''));
-        setCurrentPerson(personResponse.data);
-
-        // Get family members
+        const current = personResponse.data;
+        setCurrentPerson(current);
+  
         const familyResponse = await axios.get(API.persons.family(id || ''));
-        setFamily(familyResponse.data);
+        const baseFamily = familyResponse.data;
+  
+        const inferredSiblings: FamilyMember[] = [];
+  
+        // Go through each parent and get their children
+        for (const parent of baseFamily.parents || []) {
+          const parentFamilyResponse = await axios.get(API.persons.family(parent._id));
+          const siblingsFromParent = parentFamilyResponse.data.children || [];
+  
+          siblingsFromParent.forEach((sibling: any) => {
+            if (
+              sibling._id !== id && // exclude self
+              !inferredSiblings.some(s => s._id === sibling._id) // prevent duplicates
+            ) {
+              inferredSiblings.push(sibling);
+            }
+          });
+        }
+  
+        setFamily({
+          ...baseFamily,
+          siblings: inferredSiblings
+        });
+  
       } catch (err) {
         console.error('Error fetching family data:', err);
         setError('Failed to load family information');
@@ -78,43 +98,36 @@ const FamilyView = () => {
         setLoading(false);
       }
     };
-
+  
     if (id) {
       fetchPersonAndFamily();
     }
   }, [id]);
+  
 
-  // Format name from person object
-  const formatName = (person: any) => {
+  const formatName = (person: FamilyMember) => {
     if (!person?.names || person.names.length === 0) return 'Unknown Person';
     return `${person.names[0].given} ${person.names[0].surname}`;
   };
 
-  // Format dates for display
-  const formatLifespan = (birthDate?: string, deathDate?: string) => {
-    const birth = birthDate ? new Date(birthDate).getFullYear() : '?';
-    const death = deathDate ? new Date(deathDate).getFullYear() : '';
-    return death ? `${birth} - ${death}` : `b. ${birth}`;
+  const formatLifespan = (birth?: { date?: string }, death?: { date?: string }) => {
+    const birthYear = birth?.date ? new Date(birth.date).getFullYear() : '?';
+    const deathYear = death?.date ? new Date(death.date).getFullYear() : '';
+    return deathYear ? `${birthYear} - ${deathYear}` : `b. ${birthYear}`;
   };
 
-  // Handle clicking on a family member card
   const handlePersonClick = (personId: string) => {
     navigate(`/family/${personId}`);
   };
-  
-  // Handle navigation back to person details
+
   const handleViewPersonDetails = () => {
     navigate(`/people/${id}`);
   };
 
-  // Render a person card
   const renderPersonCard = (person: FamilyMember, relationshipLabel?: string) => (
     <Card 
       key={person._id} 
-      sx={{ 
-        mb: 2, 
-        border: person._id === id ? '2px solid #3f51b5' : 'none' 
-      }}
+      sx={{ mb: 2, border: person._id === id ? '2px solid #3f51b5' : 'none' }}
     >
       <CardActionArea onClick={() => handlePersonClick(person._id)}>
         <CardContent>
@@ -123,7 +136,7 @@ const FamilyView = () => {
               {!person.imageUrl && <PersonIcon />}
             </Avatar>
             <Box>
-              <Typography variant="h6">{person.name}</Typography>
+              <Typography variant="h6">{formatName(person)}</Typography>
               {relationshipLabel && (
                 <Typography variant="caption" color="textSecondary">
                   {relationshipLabel}
@@ -132,7 +145,7 @@ const FamilyView = () => {
             </Box>
           </Box>
           <Typography variant="body2">
-            {formatLifespan(person.birthDate, person.deathDate)}
+            {formatLifespan(person.birth, person.death)}
           </Typography>
         </CardContent>
       </CardActionArea>
@@ -166,18 +179,16 @@ const FamilyView = () => {
   return (
     <Paper elevation={3} sx={{ p: 3 }}>
       <Breadcrumbs sx={{ mb: 3 }}>
-        <Link href="/people">People</Link>
-        <Link href={`/people/${id}`}>{formatName(currentPerson)}</Link>
+        <MuiLink component={RouterLink} to="/people">People</MuiLink>
+        <MuiLink component={RouterLink} to={`/people/${id}`}>{formatName(currentPerson)}</MuiLink>
         <Typography color="textPrimary">Family</Typography>
       </Breadcrumbs>
 
-      {/* Navigation button to return to person details */}
       <Box display="flex" justifyContent="center" mb={3}>
         <Button
           variant="outlined"
           startIcon={<PersonIcon />}
           onClick={handleViewPersonDetails}
-          aria-label="View Person Details"
         >
           Back to Person Details
         </Button>
@@ -201,7 +212,7 @@ const FamilyView = () => {
 
       {viewMode === 'family' && (
         <Grid container spacing={3}>
-          {/* Parents Section */}
+          {/* Parents */}
           <Grid item xs={12} md={6}>
             <Typography variant="h6" gutterBottom>
               <Box display="flex" alignItems="center">
@@ -210,7 +221,6 @@ const FamilyView = () => {
               </Box>
             </Typography>
             <Divider sx={{ mb: 2 }} />
-            
             {family.parents.length > 0 ? (
               family.parents.map(parent => renderPersonCard(parent))
             ) : (
@@ -220,7 +230,7 @@ const FamilyView = () => {
             )}
           </Grid>
 
-          {/* Siblings Section */}
+          {/* Siblings */}
           <Grid item xs={12} md={6}>
             <Typography variant="h6" gutterBottom>
               <Box display="flex" alignItems="center">
@@ -229,7 +239,6 @@ const FamilyView = () => {
               </Box>
             </Typography>
             <Divider sx={{ mb: 2 }} />
-            
             {family.siblings.length > 0 ? (
               family.siblings.map(sibling => renderPersonCard(sibling))
             ) : (
@@ -239,7 +248,7 @@ const FamilyView = () => {
             )}
           </Grid>
 
-          {/* Spouses Section */}
+          {/* Spouses */}
           <Grid item xs={12}>
             <Typography variant="h6" gutterBottom>
               <Box display="flex" alignItems="center">
@@ -248,7 +257,6 @@ const FamilyView = () => {
               </Box>
             </Typography>
             <Divider sx={{ mb: 2 }} />
-            
             {family.spouses.length > 0 ? (
               family.spouses.map(spouse => renderPersonCard(spouse))
             ) : (
@@ -258,7 +266,7 @@ const FamilyView = () => {
             )}
           </Grid>
 
-          {/* Children Section */}
+          {/* Children */}
           <Grid item xs={12}>
             <Typography variant="h6" gutterBottom>
               <Box display="flex" alignItems="center">
@@ -267,7 +275,6 @@ const FamilyView = () => {
               </Box>
             </Typography>
             <Divider sx={{ mb: 2 }} />
-            
             {family.children.length > 0 ? (
               family.children.map(child => renderPersonCard(child))
             ) : (
@@ -283,9 +290,7 @@ const FamilyView = () => {
         <Box>
           <Typography variant="body1">
             Ancestor view would display parents, grandparents, etc. in a tree or hierarchical format.
-            This would require a more complex implementation with family tree visualization.
           </Typography>
-          {/* Implement ancestor tree visualization here */}
         </Box>
       )}
 
@@ -293,9 +298,7 @@ const FamilyView = () => {
         <Box>
           <Typography variant="body1">
             Descendant view would display children, grandchildren, etc. in a tree or hierarchical format.
-            This would require a more complex implementation with family tree visualization.
           </Typography>
-          {/* Implement descendant tree visualization here */}
         </Box>
       )}
     </Paper>

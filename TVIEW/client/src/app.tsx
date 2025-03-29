@@ -35,8 +35,10 @@ import {
   Dashboard as DashboardIcon, 
   People as PeopleIcon, 
   Event as EventIcon, 
+  
   CloudUpload as UploadIcon,
   Edit as EditIcon,
+  AccessTime as AccessTimeIcon,
   Settings as SettingsIcon,
   CloudDownload as ExportIcon
 } from '@mui/icons-material';
@@ -45,7 +47,9 @@ import axios from 'axios';
 import GedcomImport from './components/gedcom/GedcomImport';
 import PersonTimeline from './components/timeline/PersonTimeline';
 import PeopleList from './components/people/PeopleList'; // Import the new PeopleList component
+import AddPersonForm from './components/people/AddPersonForm';
 import EventsPage from './components/events/EventsPage';
+import TimeView from './components/timeview/TimeView';
 import ExportData from './components/export/ExportData';
 import PersonEdit from './components/people/PersonEdit'; // Ensure the file exists at this path or update the path accordingly
 import FamilyView from './components/family/FamilyView'; // Import the FamilyView component
@@ -142,6 +146,29 @@ const PersonOverview = () => {
     </div>
   );
 };
+
+const AddPersonPage = () => {
+  // In a real app, you'd get this from route params
+  const searchParams = new URLSearchParams(window.location.search);
+  const selectedPersonId = searchParams.get('personId') || undefined;
+  
+  // Navigation functions
+  const handleCancel = () => {
+    window.history.back();
+  };
+  
+  const handleSuccess = () => {
+    window.history.back();
+  };
+  
+  return (
+    <AddPersonForm 
+      selectedPersonId={selectedPersonId} 
+      onCancel={handleCancel} 
+      onSuccess={handleSuccess} 
+    />
+  );
+};
 // Dashboard Component
 const Dashboard = () => {
   return (
@@ -226,7 +253,14 @@ function App() {
                   <ListItemText primary="Events" />
                 </ListItemButton>
               </ListItem>
-              
+
+              <ListItem component={Link} to="/timeview" disablePadding>
+                <ListItemButton>
+                  <ListItemIcon><AccessTimeIcon /></ListItemIcon> {/* You'll need to import this */}
+                  <ListItemText primary="Time View" />
+                </ListItemButton>
+              </ListItem>
+
               <ListItem component={Link} to="/export" disablePadding>
                 <ListItemButton>
                   <ListItemIcon><ExportIcon /></ListItemIcon>
@@ -268,11 +302,13 @@ function App() {
                 <Route path="/import" element={<GedcomImport />} />
                 <Route path="/people" element={<PeopleList />} />
                 <Route path="/people/:id" element={<PersonOverview />} />
+                <Route path="/persons/add" element={<AddPersonPage />} />
                 <Route path="/people/:id/edit" element={<PersonEdit />} />
                 <Route path="/family/:id" element={<FamilyView />} /> 
                 <Route path="/events" element={<EventsPage />} />
                 <Route path="/export" element={<ExportData />} />
                 <Route path="/admin/database" element={<DatabaseManager />} />
+                <Route path="/timeview" element={<TimeView />} /> 
                 <Route path="/settings" element={<SettingsPage />} />
               </Routes>
             </Container>
